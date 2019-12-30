@@ -27,7 +27,7 @@
 			<key>IOClass</key>
 			<string>VoodooI2CGoodixTouchDriver</string>
 			<key>IOProbeScore</key>
-			<integer>800</integer>
+			<integer>200</integer>
 			<key>IOPropertyMatch</key>
 			<dict>
 				<key>name</key>
@@ -35,6 +35,8 @@
 			</dict>
 			<key>IOProviderClass</key>
 			<string>VoodooI2CDeviceNub</string>
+			<key>IOKitDebug</key>
+			<integer>65535</integer>
 		</dict>
 	</dict>
 	<key>NSHumanReadableCopyright</key>

@@ -6,36 +6,37 @@
 //  Copyright © 2018 CoolStar. All rights reserved.
 //
 
+#include <IOKit/IOLib.h>
 #include "VoodooI2CGoodixTouchDriver.hpp"
-#include "goodix.h"
 
 #define super IOService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixTouchDriver, IOService);
 
+bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
+    bool res = super::init(properties);
+    IOLog("Initializing\n");
+    return res;
+}
+
 void VoodooI2CGoodixTouchDriver::free() {
+    IOLog("Freeing\n");
     super::free();
 }
 
-bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
-    awake = true;
-    ready_for_input = false;
-    read_in_progress = false;
-    return true;
-}
-
-VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provider, SInt32* score) {
-    return NULL;
+IOService *VoodooI2CGoodixTouchDriver::probe(IOService* provider, SInt32* score) {
+    IOService *res = super::probe(provider, score);
+    IOLog("Probing\n");
+    return res;
 }
 
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
-    if (!super::start(provider)) {
-        return false;
-    }
-
-    return true;
+    bool res = super::start(provider);
+    IOLog("Starting\n");
+    return res;
 }
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
+    IOLog("Stopping\n");
     super::stop(provider);
 }
 
@@ -44,13 +45,5 @@ IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOS
         return kIOReturnInvalid;
     }
 
-    if (powerState == 0){
-        awake = false;
-    }
-    else {
-        if (!awake) {
-            awake = true;
-        }
-    }
     return kIOPMAckImplied;
 }
