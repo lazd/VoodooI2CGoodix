@@ -6,7 +6,6 @@
 //  Copyright © 2018 CoolStar. All rights reserved.
 //
 
-#include <IOKit/IOLib.h>
 #include "VoodooI2CGoodixTouchDriver.hpp"
 
 #define super IOService
@@ -23,10 +22,10 @@ void VoodooI2CGoodixTouchDriver::free() {
     super::free();
 }
 
-IOService *VoodooI2CGoodixTouchDriver::probe(IOService* provider, SInt32* score) {
-    IOService *res = super::probe(provider, score);
+VoodooI2CGoodixTouchDriver *VoodooI2CGoodixTouchDriver::probe(IOService* provider, SInt32* score) {
+    super::probe(provider, score);
     IOLog("Probing\n");
-    return res;
+    return this;
 }
 
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {

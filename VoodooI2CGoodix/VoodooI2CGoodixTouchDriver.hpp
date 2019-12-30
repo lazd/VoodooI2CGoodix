@@ -10,6 +10,10 @@
 #define VoodooI2CGoodixTouchDriver_hpp
 
 #include <IOKit/IOService.h>
+#include "../../../VoodooI2C/VoodooI2C/VoodooI2CDevice/VoodooI2CDeviceNub.hpp"
+#include "../../../Multitouch Support/VoodooI2CMultitouchInterface.hpp"
+#include "../../../Multitouch Support/MultitouchHelpers.hpp"
+#include "../../../Dependencies/helpers.hpp"
 
 class VoodooI2CGoodixTouchDriver : public IOService {
     OSDeclareDefaultStructors(VoodooI2CGoodixTouchDriver);
@@ -29,7 +33,7 @@ public:
      *
      * @return returns an instance of the current VoodooI2CGoodixTouchDriver if there is a matched Goodix device, NULL otherwise
      */
-    IOService *probe(IOService* provider, SInt32* score) override;
+    VoodooI2CGoodixTouchDriver *probe(IOService* provider, SInt32* score) override;
     /* Starts the driver and initialises the Goodix device
      *
      * @return returns true if the driver has started
