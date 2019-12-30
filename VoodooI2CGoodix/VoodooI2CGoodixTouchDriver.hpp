@@ -60,6 +60,26 @@ protected:
         VoodooI2CMultitouchInterface *mt_interface;
         OSArray* transducers;
         IOWorkLoop* workLoop;
+
+        /* Sends the appropriate packets to
+         * initialise the device into multitouch mode
+         *
+         * @return true if the device was initialised properly
+         */
+        bool init_device();
+        /* Initialises the VoodooI2C multitouch classes
+         *
+         * @return true if the VoodooI2C multitouch classes were properly initialised
+         */
+        bool publish_multitouch_interface();
+        /* Releases any allocated resources (called by stop)
+         *
+         */
+        void release_resources();
+        /* Releases any allocated VoodooI2C multitouch device
+         *
+         */
+        void unpublish_multitouch_interface();
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */
