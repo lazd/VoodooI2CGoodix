@@ -20,25 +20,25 @@
 	<string>1</string>
 	<key>IOKitPersonalities</key>
 	<dict>
-		<key>Atmel Touch Screen</key>
+		<key>Goodix Touch Screen</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>org.coolstar.VoodooI2CAtmelMXT</string>
+			<string>net.lazd.VoodooI2CGoodix</string>
 			<key>IOClass</key>
-			<string>VoodooI2CAtmelMXTTouchDriver</string>
+			<string>VoodooI2CGoodixTouchDriver</string>
 			<key>IOProbeScore</key>
-			<integer>200</integer>
+			<integer>800</integer>
 			<key>IOPropertyMatch</key>
 			<dict>
 				<key>name</key>
-				<string>ATML0001</string>
+				<string>GDIX1001</string>
 			</dict>
 			<key>IOProviderClass</key>
 			<string>VoodooI2CDeviceNub</string>
 		</dict>
 	</dict>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2018 CoolStar. All rights reserved.</string>
+	<string>Copyright © 2019 lazd. All rights reserved.</string>
 	<key>OSBundleLibraries</key>
 	<dict>
 		<key>com.alexandred.VoodooI2C</key>

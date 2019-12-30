@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:VoodooI2CAtmelMXT.xcodeproj">
+      location = "self:VoodooI2CGoodix.xcodeproj">
    </FileRef>
 </Workspace>

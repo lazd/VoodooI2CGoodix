@@ -7,18 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F1F613CA20902FD700F1B282 /* atmel_crc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F613C920902FD700F1B282 /* atmel_crc.cpp */; };
-		F1F613CE2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F613CC2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.cpp */; };
-		F1F613CF2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F1F613CD2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.hpp */; };
+		F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */; };
+		F1F613CF2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		F1F613BE20902F4C00F1B282 /* VoodooI2CAtmelMXT.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoodooI2CAtmelMXT.kext; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1F613BE20902F4C00F1B282 /* VoodooI2CGoodix.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoodooI2CGoodix.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1F613C320902F4C00F1B282 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F1F613C920902FD700F1B282 /* atmel_crc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = atmel_crc.cpp; sourceTree = "<group>"; };
-		F1F613CB20902FEE00F1B282 /* atmel_mxt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = atmel_mxt.h; sourceTree = "<group>"; };
-		F1F613CC2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VoodooI2CAtmelMXTTouchDriver.cpp; sourceTree = "<group>"; };
-		F1F613CD2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VoodooI2CAtmelMXTTouchDriver.hpp; sourceTree = "<group>"; };
+		F1F613CB20902FEE00F1B282 /* goodix.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = goodix.h; sourceTree = "<group>"; };
+		F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VoodooI2CGoodixTouchDriver.cpp; sourceTree = "<group>"; };
+		F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VoodooI2CGoodixTouchDriver.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,7 +33,7 @@
 		F1F613B420902F4C00F1B282 = {
 			isa = PBXGroup;
 			children = (
-				F1F613C020902F4C00F1B282 /* VoodooI2CAtmelMXT */,
+				F1F613C020902F4C00F1B282 /* VoodooI2CGoodix */,
 				F1F613BF20902F4C00F1B282 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,21 +41,20 @@
 		F1F613BF20902F4C00F1B282 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F1F613BE20902F4C00F1B282 /* VoodooI2CAtmelMXT.kext */,
+				F1F613BE20902F4C00F1B282 /* VoodooI2CGoodix.kext */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		F1F613C020902F4C00F1B282 /* VoodooI2CAtmelMXT */ = {
+		F1F613C020902F4C00F1B282 /* VoodooI2CGoodix */ = {
 			isa = PBXGroup;
 			children = (
 				F1F613C320902F4C00F1B282 /* Info.plist */,
-				F1F613C920902FD700F1B282 /* atmel_crc.cpp */,
-				F1F613CB20902FEE00F1B282 /* atmel_mxt.h */,
-				F1F613CC2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.cpp */,
-				F1F613CD2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.hpp */,
+				F1F613CB20902FEE00F1B282 /* goodix.h */,
+				F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */,
+				F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */,
 			);
-			path = VoodooI2CAtmelMXT;
+			path = VoodooI2CGoodix;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -67,16 +64,16 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F1F613CF2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.hpp in Headers */,
+				F1F613CF2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		F1F613BD20902F4C00F1B282 /* VoodooI2CAtmelMXT */ = {
+		F1F613BD20902F4C00F1B282 /* VoodooI2CGoodix */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F1F613C620902F4C00F1B282 /* Build configuration list for PBXNativeTarget "VoodooI2CAtmelMXT" */;
+			buildConfigurationList = F1F613C620902F4C00F1B282 /* Build configuration list for PBXNativeTarget "VoodooI2CGoodix" */;
 			buildPhases = (
 				F1F613B920902F4C00F1B282 /* Sources */,
 				F1F613BA20902F4C00F1B282 /* Frameworks */,
@@ -87,9 +84,9 @@
 			);
 			dependencies = (
 			);
-			name = VoodooI2CAtmelMXT;
-			productName = VoodooI2CAtmelMXT;
-			productReference = F1F613BE20902F4C00F1B282 /* VoodooI2CAtmelMXT.kext */;
+			name = VoodooI2CGoodix;
+			productName = VoodooI2CGoodix;
+			productReference = F1F613BE20902F4C00F1B282 /* VoodooI2CGoodix.kext */;
 			productType = "com.apple.product-type.kernel-extension";
 		};
 /* End PBXNativeTarget section */
@@ -98,15 +95,15 @@
 		F1F613B520902F4C00F1B282 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0930;
-				ORGANIZATIONNAME = CoolStar;
+				LastUpgradeCheck = 1130;
+				ORGANIZATIONNAME = lazd;
 				TargetAttributes = {
 					F1F613BD20902F4C00F1B282 = {
 						CreatedOnToolsVersion = 9.3;
 					};
 				};
 			};
-			buildConfigurationList = F1F613B820902F4C00F1B282 /* Build configuration list for PBXProject "VoodooI2CAtmelMXT" */;
+			buildConfigurationList = F1F613B820902F4C00F1B282 /* Build configuration list for PBXProject "VoodooI2CGoodix" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -118,7 +115,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F1F613BD20902F4C00F1B282 /* VoodooI2CAtmelMXT */,
+				F1F613BD20902F4C00F1B282 /* VoodooI2CGoodix */,
 			);
 		};
 /* End PBXProject section */
@@ -138,8 +135,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F1F613CE2090304000F1B282 /* VoodooI2CAtmelMXTTouchDriver.cpp in Sources */,
-				F1F613CA20902FD700F1B282 /* atmel_crc.cpp in Sources */,
+				F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,11 +254,12 @@
 		F1F613C720902F4C00F1B282 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
-				INFOPLIST_FILE = VoodooI2CAtmelMXT/Info.plist;
-				MODULE_NAME = org.coolstar.VoodooI2CAtmelMXT;
+				INFOPLIST_FILE = VoodooI2CGoodix/Info.plist;
+				MODULE_NAME = net.lazd.VoodooI2CGoodix;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = org.coolstar.VoodooI2CAtmelMXT;
+				PRODUCT_BUNDLE_IDENTIFIER = net.lazd.VoodooI2CGoodix;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = kext;
 			};
@@ -271,11 +268,12 @@
 		F1F613C820902F4C00F1B282 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
-				INFOPLIST_FILE = VoodooI2CAtmelMXT/Info.plist;
-				MODULE_NAME = org.coolstar.VoodooI2CAtmelMXT;
+				INFOPLIST_FILE = VoodooI2CGoodix/Info.plist;
+				MODULE_NAME = net.lazd.VoodooI2CGoodix;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = org.coolstar.VoodooI2CAtmelMXT;
+				PRODUCT_BUNDLE_IDENTIFIER = net.lazd.VoodooI2CGoodix;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = kext;
 			};
@@ -284,7 +282,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F1F613B820902F4C00F1B282 /* Build configuration list for PBXProject "VoodooI2CAtmelMXT" */ = {
+		F1F613B820902F4C00F1B282 /* Build configuration list for PBXProject "VoodooI2CGoodix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F1F613C420902F4C00F1B282 /* Debug */,
@@ -293,7 +291,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F1F613C620902F4C00F1B282 /* Build configuration list for PBXNativeTarget "VoodooI2CAtmelMXT" */ = {
+		F1F613C620902F4C00F1B282 /* Build configuration list for PBXNativeTarget "VoodooI2CGoodix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F1F613C720902F4C00F1B282 /* Debug */,
