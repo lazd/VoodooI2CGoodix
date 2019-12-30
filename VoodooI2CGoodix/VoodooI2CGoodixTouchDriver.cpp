@@ -89,6 +89,9 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         IOLog("%s::Failed to init device\n", getName());
         return NULL;
     }
+    else {
+        IOLog("%s::Device initialized\n", getName());
+    }
 //    workLoop->addEventSource(interrupt_source);
 //    interrupt_source->enable();
     PMinit();
@@ -123,6 +126,7 @@ IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOS
 }
 
 bool VoodooI2CGoodixTouchDriver::init_device() {
+    goodix_read_version();
     return true;
 }
 
@@ -199,4 +203,52 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
         }
         OSSafeReleaseNULL(transducers);
     }
+}
+
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, int len) {
+    IOReturn retVal = kIOReturnSuccess;
+    UInt16 buffer[] {
+        reg
+    };
+    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
+    return retVal;
+}
+
+static inline uint16_t __get_unaligned_le16(const uint8_t *p)
+{
+    return p[0] | p[1] << 8;
+}
+
+static inline uint16_t get_unaligned_le16(const void *p)
+{
+    return __get_unaligned_le16((const uint8_t *)p);
+}
+
+/**
+ * goodix_read_version - Read goodix touchscreen version
+ */
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
+    IOLog("%s::Reading version...\n", getName());
+    
+    IOReturn retVal = kIOReturnSuccess;
+    UInt8 buf[6];
+    char id_str[5];
+
+    retVal = goodix_read_reg(GOODIX_REG_ID, buf, sizeof(buf));
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Read version failed\n", getName());
+        return retVal;
+    }
+
+    // Copy the first 4 bytes of the buffer to the id strings
+    memcpy(id_str, buf, 4);
+    // Reset the last byte of the ID string to zero
+    id_str[4] = 0;
+
+    uint16_t version = get_unaligned_le16(&buf[4]);
+
+    IOLog("%s::ID %s, version: %d\n", getName(), id_str, version);
+
+    return retVal;
 }

@@ -50,36 +50,40 @@ public:
 protected:
     IOReturn setPowerState(unsigned long powerState, IOService* whatDevice) override;
 
-    private:
-        bool awake;
-        bool read_in_progress;
-        bool ready_for_input;
+private:
+    bool awake;
+    bool read_in_progress;
+    bool ready_for_input;
 
-        IOCommandGate* command_gate;
-        IOInterruptEventSource* interrupt_source;
-        VoodooI2CMultitouchInterface *mt_interface;
-        OSArray* transducers;
-        IOWorkLoop* workLoop;
+    IOCommandGate* command_gate;
+    IOInterruptEventSource* interrupt_source;
+    VoodooI2CMultitouchInterface *mt_interface;
+    OSArray* transducers;
+    IOWorkLoop* workLoop;
 
-        /* Sends the appropriate packets to
-         * initialise the device into multitouch mode
-         *
-         * @return true if the device was initialised properly
-         */
-        bool init_device();
-        /* Initialises the VoodooI2C multitouch classes
-         *
-         * @return true if the VoodooI2C multitouch classes were properly initialised
-         */
-        bool publish_multitouch_interface();
-        /* Releases any allocated resources (called by stop)
-         *
-         */
-        void release_resources();
-        /* Releases any allocated VoodooI2C multitouch device
-         *
-         */
-        void unpublish_multitouch_interface();
+    /* Sends the appropriate packets to
+     * initialise the device into multitouch mode
+     *
+     * @return true if the device was initialised properly
+     */
+    bool init_device();
+    /* Initialises the VoodooI2C multitouch classes
+     *
+     * @return true if the VoodooI2C multitouch classes were properly initialised
+     */
+    bool publish_multitouch_interface();
+    /* Releases any allocated resources (called by stop)
+     *
+     */
+    void release_resources();
+    /* Releases any allocated VoodooI2C multitouch device
+     *
+     */
+    void unpublish_multitouch_interface();
+
+    IOReturn goodix_read_version();
+
+    IOReturn goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */
