@@ -35,8 +35,6 @@
 			</dict>
 			<key>IOProviderClass</key>
 			<string>VoodooI2CDeviceNub</string>
-			<key>IOKitDebug</key>
-			<integer>65535</integer>
 		</dict>
 	</dict>
 	<key>NSHumanReadableCopyright</key>
