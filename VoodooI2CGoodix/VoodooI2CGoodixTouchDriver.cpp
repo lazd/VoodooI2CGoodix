@@ -12,6 +12,69 @@
 #define super IOService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixTouchDriver, IOService);
 
+struct goodix_chip_data {
+    UInt16 config_addr;
+    int config_len;
+};
+
+struct goodix_ts_data {
+    const struct goodix_chip_data *chip;
+    int abs_x_max;
+    int abs_y_max;
+    bool swapped_x_y;
+    bool inverted_x;
+    bool inverted_y;
+    unsigned int max_touch_num;
+    unsigned int int_trigger_type;
+    UInt16 id;
+    UInt16 version;
+    const char *cfg_name;
+    struct gpio_desc *gpiod_int;
+    struct gpio_desc *gpiod_rst;
+};
+
+static const struct goodix_chip_data gt1x_chip_data = {
+    .config_addr        = GOODIX_GT1X_REG_CONFIG_DATA,
+    .config_len        = GOODIX_CONFIG_MAX_LENGTH
+};
+
+static const struct goodix_chip_data gt911_chip_data = {
+    .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
+    .config_len        = GOODIX_CONFIG_911_LENGTH
+};
+
+static const struct goodix_chip_data gt967_chip_data = {
+    .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
+    .config_len        = GOODIX_CONFIG_967_LENGTH
+};
+
+static const struct goodix_chip_data gt9x_chip_data = {
+    .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
+    .config_len        = GOODIX_CONFIG_MAX_LENGTH
+};
+
+static const struct goodix_chip_data *goodix_get_chip_data(UInt16 id)
+{
+    switch (id) {
+    case 1151:
+        return &gt1x_chip_data;
+
+    case 911:
+    case 9271:
+    case 9110:
+    case 927:
+    case 928:
+        return &gt911_chip_data;
+
+    case 912:
+    case 967:
+        return &gt967_chip_data;
+
+    default:
+        return &gt9x_chip_data;
+    }
+};
+
 bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
     transducers = NULL;
     if (!super::init(properties)) {
@@ -55,22 +118,8 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     return this;
 }
 
-bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
-    if (!super::start(provider)) {
-        return false;
-    }
-    IOLog("%s::Starting\n", getName());
-    if (!init_device()) {
-        IOLog("%s::Failed to init device\n", getName());
-        return NULL;
-    }
-    else {
-        IOLog("%s::Device initialized\n", getName());
-    }
-    return true;
-}
-
 /*
+// Actual start sequence commented out for now
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
@@ -125,6 +174,22 @@ start_exit:
 }
 */
 
+/* Temporary start sequence for testing */
+bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
+    if (!super::start(provider)) {
+        return false;
+    }
+    IOLog("%s::Starting\n", getName());
+    if (!init_device()) {
+        IOLog("%s::Failed to init device\n", getName());
+        return NULL;
+    }
+    else {
+        IOLog("%s::Device initialized\n", getName());
+    }
+    return true;
+}
+
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 //    release_resources();
 //    unpublish_multitouch_interface();
@@ -139,11 +204,6 @@ IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOS
     }
 
     return kIOPMAckImplied;
-}
-
-bool VoodooI2CGoodixTouchDriver::init_device() {
-    goodix_read_version();
-    return true;
 }
 
 bool VoodooI2CGoodixTouchDriver::publish_multitouch_interface() {
@@ -221,23 +281,6 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
 }
 
-/* Adapted from the CELAN Driver */
-IOReturn VoodooI2CGoodixTouchDriver::read_raw_16bit_data(UInt16 reg, size_t len, UInt8* values) {
-    IOReturn retVal = kIOReturnSuccess;
-    UInt16 buffer[] {
-        reg
-    };
-    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
-    return retVal;
-}
-
-/* Adapted from the CELAN Driver */
-IOReturn VoodooI2CGoodixTouchDriver::read_raw_data(UInt8 reg, size_t len, UInt8* values) {
-    IOReturn retVal = kIOReturnSuccess;
-    retVal = api->writeReadI2C(&reg, 1, values, len);
-    return retVal;
-}
-
 /* Adapted from the AtmelMXT Driver */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len) {
     // Datasheet indicates that the GT911 takes a 16 bit register address
@@ -264,7 +307,7 @@ static inline uint16_t get_unaligned_le16(const void *p) {
 }
 
 /* Ported from goodix.c */
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *ts) {
     IOLog("%s::Reading version...\n", getName());
     
     IOReturn retVal = kIOReturnSuccess;
@@ -284,10 +327,78 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     id_str[4] = 0;
 
     // Todo: Convert id_str to UInt16 (ala kstrtou16)
+//    ts->id = id_str;
 
-    uint16_t version = get_unaligned_le16(&buf[4]);
+    ts->version = get_unaligned_le16(&buf[4]);
 
-    IOLog("%s::ID %s, version: %04x\n", getName(), id_str, version);
+    IOLog("%s::ID %d, version: %04x\n", getName(), ts->id, ts->version);
 
     return retVal;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_get_gpio_config(struct goodix_ts_data *ts) {
+    IOReturn retVal = kIOReturnSuccess;
+    // Get the interrupt GPIO pin number
+//    gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_INT_NAME, GPIOD_IN);
+//    ts->gpiod_int = gpiod;
+
+    // Get the reset line GPIO pin number
+//    gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_RST_NAME, GPIOD_IN);
+//    ts->gpiod_rst = gpiod;
+
+    return retVal;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_reset(struct goodix_ts_data *ts) {
+    IOReturn retVal = kIOReturnSuccess;
+
+    return retVal;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev(struct goodix_ts_data *ts) {
+    IOReturn retVal = kIOReturnSuccess;
+
+    return retVal;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *ts) {
+    IOReturn retVal = kIOReturnSuccess;
+
+    return retVal;
+}
+
+bool VoodooI2CGoodixTouchDriver::init_device() {
+    IOReturn retVal = kIOReturnSuccess;
+    struct goodix_ts_data *ts;
+    ts = (struct goodix_ts_data *)IOMalloc(sizeof(struct goodix_ts_data));
+    memset(ts, 0, sizeof(struct goodix_ts_data));
+
+    if (goodix_get_gpio_config(ts) != kIOReturnSuccess) {
+        return retVal;
+    }
+
+    if (ts->gpiod_int && ts->gpiod_rst) {
+        if (goodix_reset(ts) != kIOReturnSuccess) {
+            return false;
+        }
+    }
+
+    if (goodix_read_version(ts) != kIOReturnSuccess) {
+        return false;
+    }
+
+    ts->chip = goodix_get_chip_data(ts->id);
+
+    if (ts->gpiod_int && ts->gpiod_rst) {
+        if (goodix_configure_dev(ts) != kIOReturnSuccess) {
+            return false;
+        }
+    }
+    else {
+        if (goodix_configure_dev(ts) != kIOReturnSuccess) {
+            return false;
+        }
+    }
+
+    return true;
 }

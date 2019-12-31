@@ -67,41 +67,59 @@ private:
      * @return true if the device was initialised properly
      */
     bool init_device();
+
     /* Initialises the VoodooI2C multitouch classes
      *
      * @return true if the VoodooI2C multitouch classes were properly initialised
      */
     bool publish_multitouch_interface();
+
     /* Releases any allocated resources (called by stop)
      *
      */
     void release_resources();
+
     /* Releases any allocated VoodooI2C multitouch device
      *
      */
     void unpublish_multitouch_interface();
 
-    IOReturn goodix_read_version();
-
     IOReturn goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len);
 
-    /* Reads raw data from the I2C bus
-     * @reg which 16bit register to read the data from
-     * @len the length of the @val buffer
-     * @vaue a buffer which is large enough to hold the data being read
+    /* Reads goodix touchscreen version
      *
-     * @return returns a IOReturn status of the reads (usually a representation of I2C bus)
+     * @ts: our goodix_ts_data pointer
      */
-    IOReturn read_raw_16bit_data(UInt16 reg, size_t len, UInt8* values);
+    IOReturn goodix_read_version(struct goodix_ts_data *ts);
 
-    /* Reads raw data from the I2C bus
-     * @reg which 8bit register to read the data from
-     * @len the length of the @val buffer
-     * @vaue a buffer which is large enough to hold the data being read
+    /* Gets GPIO config from ACPI/DT
      *
-     * @return returns a IOReturn status of the reads (usually a representation of I2C bus)
+     * @ts: goodix_ts_data pointer
      */
-    IOReturn read_raw_data(UInt8 reg, size_t len, UInt8* values);
+    IOReturn goodix_get_gpio_config(struct goodix_ts_data *ts);
+
+    /* Reset device during power on
+     *
+     * @ts: goodix_ts_data pointer
+     */
+    IOReturn goodix_reset(struct goodix_ts_data *ts);
+
+    /* Finish device initialization
+     * Must be called from probe to finish initialization of the device.
+     * Contains the common initialization code for both devices that
+     * declare gpio pins and devices that do not. It is either called
+     * directly from probe or from request_firmware_wait callback.
+     *
+     * @ts: goodix_ts_data pointer
+    */
+    IOReturn goodix_configure_dev(struct goodix_ts_data *ts);
+
+    /* Read the embedded configuration of the panel
+     * Must be called during probe
+     *
+     * @ts: our goodix_ts_data pointer
+     */
+    IOReturn goodix_read_config(struct goodix_ts_data *ts);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */
