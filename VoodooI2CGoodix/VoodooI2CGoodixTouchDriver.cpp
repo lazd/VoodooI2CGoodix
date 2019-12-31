@@ -59,6 +59,22 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
     }
+    IOLog("%s::Starting\n", getName());
+    if (!init_device()) {
+        IOLog("%s::Failed to init device\n", getName());
+        return NULL;
+    }
+    else {
+        IOLog("%s::Device initialized\n", getName());
+    }
+    return true;
+}
+
+/*
+bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
+    if (!super::start(provider)) {
+        return false;
+    }
     workLoop = this->getWorkLoop();
     if (!workLoop) {
         IOLog("%s::Could not get a IOWorkLoop instance\n", getName());
@@ -76,14 +92,13 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         IOLog("%s::Could not open API\n", getName());
         goto start_exit;
     }
-    /*
+
     // set interrupts AFTER device is initialised
-    interrupt_source = IOInterruptEventSource::interruptEventSource(this, OSMemberFunctionCast(IOInterruptEventAction, this, &VoodooI2CGoodixTouchDriver::interrupt_occurred), api, 0);
-    if (!interrupt_source) {
-        IOLog("%s::Could not get interrupt event source\n", getName());
-        goto start_exit;
-    }
-    */
+//    interrupt_source = IOInterruptEventSource::interruptEventSource(this, OSMemberFunctionCast(IOInterruptEventAction, this, &VoodooI2CGoodixTouchDriver::interrupt_occurred), api, 0);
+//    if (!interrupt_source) {
+//        IOLog("%s::Could not get interrupt event source\n", getName());
+//        goto start_exit;
+//    }
     publish_multitouch_interface();
      if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
@@ -108,11 +123,12 @@ start_exit:
     release_resources();
     return false;
 }
+*/
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
-    release_resources();
-    unpublish_multitouch_interface();
-    PMstop();
+//    release_resources();
+//    unpublish_multitouch_interface();
+//    PMstop();
     IOLog("%s::Stopped\n", getName());
     super::stop(provider);
 }
@@ -205,8 +221,8 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
 }
 
-
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, int len) {
+/* Adapted from the CELAN Driver */
+IOReturn VoodooI2CGoodixTouchDriver::read_raw_16bit_data(UInt16 reg, size_t len, UInt8* values) {
     IOReturn retVal = kIOReturnSuccess;
     UInt16 buffer[] {
         reg
@@ -215,19 +231,39 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, 
     return retVal;
 }
 
-static inline uint16_t __get_unaligned_le16(const uint8_t *p)
-{
+/* Adapted from the CELAN Driver */
+IOReturn VoodooI2CGoodixTouchDriver::read_raw_data(UInt8 reg, size_t len, UInt8* values) {
+    IOReturn retVal = kIOReturnSuccess;
+    retVal = api->writeReadI2C(&reg, 1, values, len);
+    return retVal;
+}
+
+/* Adapted from the AtmelMXT Driver */
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len) {
+    // Datasheet indicates that the GT911 takes a 16 bit register address
+    // Convert the UInt16 register address into a Uint8 array, respecting endianness
+    // https://stackoverflow.com/questions/1289251/converting-a-uint16-value-into-a-uint8-array2/1289360#1289360
+    UInt8 wreg[2];
+    wreg[0] = reg & 255;
+    wreg[1] = reg >> 8;
+
+    IOReturn retVal = kIOReturnSuccess;
+
+    // Use reinterpret_cast to be able to pass the array as if it were a UInt8 pointer
+    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(wreg), sizeof(wreg), rbuf, len);
+    return retVal;
+}
+
+/* Temp: Taken from the Linux kernel source */
+static inline uint16_t __get_unaligned_le16(const uint8_t *p) {
     return p[0] | p[1] << 8;
 }
 
-static inline uint16_t get_unaligned_le16(const void *p)
-{
+static inline uint16_t get_unaligned_le16(const void *p) {
     return __get_unaligned_le16((const uint8_t *)p);
 }
 
-/**
- * goodix_read_version - Read goodix touchscreen version
- */
+/* Ported from goodix.c */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     IOLog("%s::Reading version...\n", getName());
     
@@ -235,9 +271,10 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     UInt8 buf[6];
     char id_str[5];
 
+    // AtmelMTX method
     retVal = goodix_read_reg(GOODIX_REG_ID, buf, sizeof(buf));
     if (retVal != kIOReturnSuccess) {
-        IOLog("%s::Read version failed\n", getName());
+        IOLog("%s::Read version failed: %d\n", getName(), retVal);
         return retVal;
     }
 
@@ -246,9 +283,11 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     // Reset the last byte of the ID string to zero
     id_str[4] = 0;
 
+    // Todo: Convert id_str to UInt16 (ala kstrtou16)
+
     uint16_t version = get_unaligned_le16(&buf[4]);
 
-    IOLog("%s::ID %s, version: %d\n", getName(), id_str, version);
+    IOLog("%s::ID %s, version: %04x\n", getName(), id_str, version);
 
     return retVal;
 }

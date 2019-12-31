@@ -84,6 +84,24 @@ private:
     IOReturn goodix_read_version();
 
     IOReturn goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len);
+
+    /* Reads raw data from the I2C bus
+     * @reg which 16bit register to read the data from
+     * @len the length of the @val buffer
+     * @vaue a buffer which is large enough to hold the data being read
+     *
+     * @return returns a IOReturn status of the reads (usually a representation of I2C bus)
+     */
+    IOReturn read_raw_16bit_data(UInt16 reg, size_t len, UInt8* values);
+
+    /* Reads raw data from the I2C bus
+     * @reg which 8bit register to read the data from
+     * @len the length of the @val buffer
+     * @vaue a buffer which is large enough to hold the data being read
+     *
+     * @return returns a IOReturn status of the reads (usually a representation of I2C bus)
+     */
+    IOReturn read_raw_data(UInt8 reg, size_t len, UInt8* values);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */
