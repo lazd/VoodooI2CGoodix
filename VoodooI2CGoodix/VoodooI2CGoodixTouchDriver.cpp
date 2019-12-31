@@ -378,6 +378,8 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
     }
 
     if (ts->gpiod_int && ts->gpiod_rst) {
+        // Reset the controller
+        // It's unclear whether this is required for normal operation, or firmware udpates only
         if (goodix_reset(ts) != kIOReturnSuccess) {
             return false;
         }
@@ -390,9 +392,9 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
     ts->chip = goodix_get_chip_data(ts->id);
 
     if (ts->gpiod_int && ts->gpiod_rst) {
-        if (goodix_configure_dev(ts) != kIOReturnSuccess) {
-            return false;
-        }
+        // update device config
+        // In goodix.c, this routine would call request_firmware_nowait() and subsequently goodix_config_cb()
+        // It seems this is a routine to update firmware, but unsure
     }
     else {
         if (goodix_configure_dev(ts) != kIOReturnSuccess) {
