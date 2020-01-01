@@ -12,4 +12,8 @@
 #define GOODIX_CONFIG_911_LENGTH    186
 #define GOODIX_CONFIG_967_LENGTH    228
 
+#define msleep(x)               IOSleep(x)
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define usleep_range(min, max)    msleep(DIV_ROUND_UP(min, 1000))
+
 #endif /* VoodooI2CGoodix_h */
