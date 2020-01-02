@@ -152,7 +152,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     publish_multitouch_interface();
      if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
-        return NULL;
+        return false;
     }
     else {
         IOLog("%s::Device initialized\n", getName());
@@ -183,7 +183,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     IOLog("%s::Starting\n", getName());
     if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
-        return NULL;
+        return false;
     }
     else {
         IOLog("%s::Device initialized\n", getName());
