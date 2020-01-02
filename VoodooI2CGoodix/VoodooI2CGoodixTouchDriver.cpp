@@ -374,7 +374,25 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_reset(struct goodix_ts_data *ts) {
     // end select I2C slave addr
     api->gpio_controller->readl(ts->gpiod_rst);
 
-//    goodix_int_sync(ts);
+    */
+
+    retVal = goodix_int_sync(ts);
+    if (retVal != kIOReturnSuccess) {
+        return retVal;
+    }
+
+    return retVal;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_int_sync(struct goodix_ts_data *ts) {
+    IOReturn retVal = kIOReturnSuccess;
+
+    /*
+    api->gpio_controller->writel(ts->gpiod_int, 0);
+
+    msleep(50); // T5: 50ms
+
+    api->gpio_controller->readl(ts->gpiod_int);
     */
 
     return retVal;
