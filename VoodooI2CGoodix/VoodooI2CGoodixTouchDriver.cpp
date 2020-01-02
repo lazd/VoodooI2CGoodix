@@ -119,7 +119,6 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     return this;
 }
 
-/*
 // Actual start sequence commented out for now
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
@@ -152,7 +151,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     publish_multitouch_interface();
      if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
-        return false;
+//        goto start_exit;
     }
     else {
         IOLog("%s::Device initialized\n", getName());
@@ -173,9 +172,9 @@ start_exit:
     release_resources();
     return false;
 }
-*/
 
 /* Temporary start sequence for testing */
+/*
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
@@ -190,6 +189,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     }
     return true;
 }
+*/
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 //    release_resources();
