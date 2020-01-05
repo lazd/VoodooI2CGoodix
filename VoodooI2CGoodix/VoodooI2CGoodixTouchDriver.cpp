@@ -363,7 +363,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Absolu
         IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
     }
 
-    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_x, input_y, input_w);
+    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
 
     if (!transducers) {
         IOLog("%s::No transducers, cannot report", getName());
