@@ -233,6 +233,9 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
         return kIOReturnSuccess;
     }
 
+    AbsoluteTime timestamp;
+    clock_get_uptime(&timestamp);
+
     /*
      * Bit 4 of the first byte reports the status of the capacitive
      * Windows/Home button.
@@ -240,13 +243,23 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 //    input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
 
     for (i = 0; i < touch_num; i++) {
-        goodix_ts_report_touch(ts, &point_data[1 + GOODIX_CONTACT_SIZE * i]);
+        goodix_ts_report_touch(ts, &point_data[1 + GOODIX_CONTACT_SIZE * i], timestamp);
     }
 
     IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
     if (retVal != kIOReturnSuccess) {
         IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
         return retVal;
+    }
+
+    if (touch_num > 0) {
+        VoodooI2CMultitouchEvent event;
+        event.contact_count = touch_num;
+        event.transducers = transducers;
+        // send the event into the multitouch interface
+        if (mt_interface) {
+            mt_interface->handleInterruptReport(event, timestamp);
+        }
     }
 
     return kIOReturnSuccess;
@@ -309,7 +322,7 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_dat
     return 0;
 }
 
-void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data) {
+void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data, AbsoluteTime timestamp) {
     int id = coor_data[0] & 0x0F;
     int input_x = get_unaligned_le16(&coor_data[1]);
     int input_y = get_unaligned_le16(&coor_data[3]);
@@ -323,6 +336,11 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *t
 //    if (ts->swapped_x_y)
 //        swap(input_x, input_y);
 
+    // Hacky bits
+    int input_z = input_x;
+    input_x = input_y;
+    input_y = input_z;
+    input_y = 1080 - input_y;
 //    input_mt_slot(ts->input_dev, id);
 //    input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 //    input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
@@ -330,7 +348,29 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *t
 //    input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
 //    input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
 
-    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
+//    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
+
+    if (!transducers) {
+        IOLog("%s::No transducers, cannot report", getName());
+        return;
+    }
+
+    VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(id));
+    transducer->type = kDigitiserTransducerFinger;
+
+    transducer->is_valid = true;
+
+    if (mt_interface) {
+        transducer->logical_max_x = mt_interface->logical_max_x;
+        transducer->logical_max_y = mt_interface->logical_max_y;
+    }
+
+    transducer->coordinates.x.update(input_x, timestamp);
+    transducer->coordinates.y.update(input_y, timestamp);
+    transducer->tip_switch.update(1, timestamp); // wat
+
+    transducer->id = id;
+    transducer->secondary_id = id;
 }
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
@@ -544,6 +584,13 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
 
     if (goodix_configure_dev(ts) != kIOReturnSuccess) {
         return false;
+    }
+
+    if (mt_interface){
+        mt_interface->physical_max_x = ts->abs_x_max;
+        mt_interface->physical_max_y = ts->abs_y_max;
+        mt_interface->logical_max_x = ts->abs_x_max;
+        mt_interface->logical_max_y = ts->abs_y_max;
     }
 
     return true;

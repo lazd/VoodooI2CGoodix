@@ -126,7 +126,7 @@ private:
      */
     IOReturn goodix_process_events();
 
-    void goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data);
+    void goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data, AbsoluteTime timestamp);
 
     int goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data);
 };
