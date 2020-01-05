@@ -108,7 +108,7 @@ private:
      *
      * @ts: our goodix_ts_data pointer
      */
-    IOReturn goodix_read_config(struct goodix_ts_data *ts);
+    void goodix_read_config(struct goodix_ts_data *ts);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */

@@ -12,6 +12,16 @@
 #define GOODIX_CONFIG_911_LENGTH    186
 #define GOODIX_CONFIG_967_LENGTH    228
 
+#define GOODIX_MAX_HEIGHT        4096
+#define GOODIX_MAX_WIDTH        4096
+#define GOODIX_INT_TRIGGER        1
+#define GOODIX_CONTACT_SIZE        8
+#define GOODIX_MAX_CONTACTS        10
+
+#define RESOLUTION_LOC        1
+#define MAX_CONTACTS_LOC    5
+#define TRIGGER_LOC        6
+
 #define msleep(x)               IOSleep(x)
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define usleep_range(min, max)    msleep(DIV_ROUND_UP(min, 1000))

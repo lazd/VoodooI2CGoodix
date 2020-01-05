@@ -345,14 +345,56 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *
     return retVal;
 }
 
+void VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *ts) {
+    UInt8 config[GOODIX_CONFIG_MAX_LENGTH];
+    IOReturn retVal = kIOReturnSuccess;
+
+    retVal = goodix_read_reg(ts->chip->config_addr, config, ts->chip->config_len);
+
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error reading config (%d), using defaults\n", getName(), retVal);
+        ts->abs_x_max = GOODIX_MAX_WIDTH;
+        ts->abs_y_max = GOODIX_MAX_HEIGHT;
+//        if (ts->swapped_x_y)
+//            swap(ts->abs_x_max, ts->abs_y_max);
+        ts->int_trigger_type = GOODIX_INT_TRIGGER;
+        ts->max_touch_num = GOODIX_MAX_CONTACTS;
+        return;
+    }
+
+    ts->abs_x_max = get_unaligned_le16(&config[RESOLUTION_LOC]);
+    ts->abs_y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
+//    if (ts->swapped_x_y)
+//        swap(ts->abs_x_max, ts->abs_y_max);
+    ts->int_trigger_type = config[TRIGGER_LOC] & 0x03;
+    ts->max_touch_num = config[MAX_CONTACTS_LOC] & 0x0f;
+    if (!ts->abs_x_max || !ts->abs_y_max || !ts->max_touch_num) {
+        IOLog("%s::Invalid config (%d), using defaults\n", getName(), retVal);
+        ts->abs_x_max = GOODIX_MAX_WIDTH;
+        ts->abs_y_max = GOODIX_MAX_HEIGHT;
+//        if (ts->swapped_x_y)
+//            swap(ts->abs_x_max, ts->abs_y_max);
+        ts->max_touch_num = GOODIX_MAX_CONTACTS;
+    }
+
+    IOLog("%s::Config read successfully\n", getName());
+
+    IOLog("%s::ts->abs_x_max = %d\n", getName(), ts->abs_x_max);
+    IOLog("%s::ts->abs_y_max = %d\n", getName(), ts->abs_y_max);
+    IOLog("%s::ts->int_trigger_type = %d\n", getName(), ts->int_trigger_type);
+    IOLog("%s::ts->max_touch_num = %d\n", getName(), ts->max_touch_num);
+
+//    if (dmi_check_system(rotated_screen)) {
+//        ts->inverted_x = true;
+//        ts->inverted_y = true;
+//        IOLog("%s::Applying '180 degrees rotated screen' quirk\n");
+//    }
+}
+
 IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev(struct goodix_ts_data *ts) {
     IOReturn retVal = kIOReturnSuccess;
 
-    return retVal;
-}
-
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *ts) {
-    IOReturn retVal = kIOReturnSuccess;
+    goodix_read_config(ts);
 
     return retVal;
 }
