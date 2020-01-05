@@ -9,6 +9,7 @@
 #ifndef VoodooI2CGoodixTouchDriver_hpp
 #define VoodooI2CGoodixTouchDriver_hpp
 
+#include <IOKit/IOLib.h>
 #include <IOKit/IOService.h>
 #include "../../../VoodooI2C/VoodooI2C/VoodooI2CDevice/VoodooI2CDeviceNub.hpp"
 #include "../../../Multitouch Support/VoodooI2CMultitouchInterface.hpp"
@@ -84,7 +85,7 @@ private:
      */
     void unpublish_multitouch_interface();
 
-    IOReturn goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len);
+    IOReturn goodix_read_reg(UInt16 reg, UInt8* values, size_t len);
 
     /* Reads goodix touchscreen version
      *

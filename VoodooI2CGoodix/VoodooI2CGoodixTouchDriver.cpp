@@ -8,6 +8,7 @@
 
 #include "VoodooI2CGoodixTouchDriver.hpp"
 #include "goodix.h"
+#include <libkern/OSByteOrder.h>
 
 #define super IOService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixTouchDriver, IOService);
@@ -119,6 +120,7 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     return this;
 }
 
+/*
 // Actual start sequence commented out for now
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
@@ -172,9 +174,9 @@ start_exit:
     release_resources();
     return false;
 }
+*/
 
 /* Temporary start sequence for testing */
-/*
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
@@ -189,7 +191,6 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     }
     return true;
 }
-*/
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 //    release_resources();
@@ -283,18 +284,20 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
 }
 
 /* Adapted from the AtmelMXT Driver */
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8 *rbuf, int len) {
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8 *values, size_t len) {
     // Datasheet indicates that the GT911 takes a 16 bit register address
     // Convert the UInt16 register address into a Uint8 array, respecting endianness
     // https://stackoverflow.com/questions/1289251/converting-a-uint16-value-into-a-uint8-array2/1289360#1289360
+
+    // Use libkern's OSSwapHostToBigInt16 to convert the reg to big endian
     UInt8 wreg[2];
-    wreg[0] = reg & 255;
-    wreg[1] = reg >> 8;
+    wreg[0] = OSSwapHostToBigInt16(reg) & 255;
+    wreg[1] = OSSwapHostToBigInt16(reg) >> 8;
 
     IOReturn retVal = kIOReturnSuccess;
 
     // Use reinterpret_cast to be able to pass the array as if it were a UInt8 pointer
-    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(wreg), sizeof(wreg), rbuf, len);
+    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(wreg), sizeof(wreg), values, len);
     return retVal;
 }
 
@@ -305,6 +308,17 @@ static inline uint16_t __get_unaligned_le16(const uint8_t *p) {
 
 static inline uint16_t get_unaligned_le16(const void *p) {
     return __get_unaligned_le16((const uint8_t *)p);
+}
+
+/* This is supposed to be a sub for kstrtou16(), adapted tfrom https://stackoverflow.com/a/20020795/1170723 */
+static inline bool str_to_uint16(const char *str, uint16_t *res) {
+    char *end;
+    long val = strtol(str, &end, 10);
+    if (end == str || *end != '\0' || val < 0 || val >= 0x10000) {
+        return false;
+    }
+    *res = (uint16_t)val;
+    return true;
 }
 
 /* Ported from goodix.c */
@@ -327,8 +341,10 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *
     // Reset the last byte of the ID string to zero
     id_str[4] = 0;
 
-    // Todo: Convert id_str to UInt16 (ala kstrtou16)
-//    ts->id = id_str;
+    if (!str_to_uint16(id_str, &ts->id)) {
+        IOLog("%s::Converting ID to UInt16 failed\n", getName());
+        return kIOReturnIOError;
+    }
 
     ts->version = get_unaligned_le16(&buf[4]);
 
