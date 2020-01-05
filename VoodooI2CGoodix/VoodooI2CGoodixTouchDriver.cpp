@@ -437,7 +437,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, 
 /* Adapted from the TFE Driver */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_write_reg(UInt16 reg, UInt8 value) {
     UInt16 buffer[] {
-        reg,
+        OSSwapHostToBigInt16(reg),
         value
     };
     IOReturn retVal = kIOReturnSuccess;
