@@ -283,22 +283,14 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
 }
 
-/* Adapted from the AtmelMXT Driver */
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8 *values, size_t len) {
-    // Datasheet indicates that the GT911 takes a 16 bit register address
-    // Convert the UInt16 register address into a Uint8 array, respecting endianness
-    // https://stackoverflow.com/questions/1289251/converting-a-uint16-value-into-a-uint8-array2/1289360#1289360
-
-    // Use libkern's OSSwapHostToBigInt16 to convert the reg to big endian
-    UInt8 wreg[2];
-    wreg[0] = OSSwapHostToBigInt16(reg) & 255;
-    wreg[1] = OSSwapHostToBigInt16(reg) >> 8;
-
-    IOReturn retVal = kIOReturnSuccess;
-
-    // Use reinterpret_cast to be able to pass the array as if it were a UInt8 pointer
-    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(wreg), sizeof(wreg), values, len);
-    return retVal;
+/* Adapted from the TFE Driver*/
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, size_t len) {
+    IOReturn relVal = kIOReturnSuccess;
+    UInt16 buffer[] {
+        OSSwapHostToBigInt16(reg)
+    };
+    relVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
+    return relVal;
 }
 
 /* Temp: Taken from the Linux kernel source */
