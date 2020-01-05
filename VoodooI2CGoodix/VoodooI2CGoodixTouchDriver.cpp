@@ -302,7 +302,7 @@ static inline uint16_t get_unaligned_le16(const void *p) {
     return __get_unaligned_le16((const uint8_t *)p);
 }
 
-/* This is supposed to be a sub for kstrtou16(), adapted tfrom https://stackoverflow.com/a/20020795/1170723 */
+/* This is supposed to be a sub for kstrtou16(), adapted from https://stackoverflow.com/a/20020795/1170723 */
 static inline bool str_to_uint16(const char *str, uint16_t *res) {
     char *end;
     long val = strtol(str, &end, 10);
@@ -345,67 +345,6 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *
     return retVal;
 }
 
-IOReturn VoodooI2CGoodixTouchDriver::goodix_get_gpio_config(struct goodix_ts_data *ts) {
-    IOReturn retVal = kIOReturnSuccess;
-
-    /*
-    // Get the interrupt GPIO pin number
-    gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_INT_NAME, GPIOD_IN);
-    ts->gpiod_int = gpiod;
-
-    // Get the reset line GPIO pin number
-    gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_RST_NAME, GPIOD_IN);
-    ts->gpiod_rst = gpiod;
-    */
-
-    return retVal;
-}
-
-IOReturn VoodooI2CGoodixTouchDriver::goodix_reset(struct goodix_ts_data *ts) {
-    IOReturn retVal = kIOReturnSuccess;
-
-    /*
-    // begin select I2C slave addr
-    api->gpio_controller->writel(ts->gpiod_rst, 0);
-
-    msleep(20); // T2: > 10ms
-
-    // HIGH: 0x28/0x29, LOW: 0xBA/0xBB
-    api->gpio_controller->writel(ts->gpiod_int, 0);
-
-    usleep_range(100, 2000); // T3: > 100us
-
-    api->gpio_controller->writel(ts->gpiod_rst, 1);
-
-    usleep_range(6000, 10000); // T4: > 5ms
-
-    // end select I2C slave addr
-    api->gpio_controller->readl(ts->gpiod_rst);
-
-    */
-
-    retVal = goodix_int_sync(ts);
-    if (retVal != kIOReturnSuccess) {
-        return retVal;
-    }
-
-    return retVal;
-}
-
-IOReturn VoodooI2CGoodixTouchDriver::goodix_int_sync(struct goodix_ts_data *ts) {
-    IOReturn retVal = kIOReturnSuccess;
-
-    /*
-    api->gpio_controller->writel(ts->gpiod_int, 0);
-
-    msleep(50); // T5: 50ms
-
-    api->gpio_controller->readl(ts->gpiod_int);
-    */
-
-    return retVal;
-}
-
 IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev(struct goodix_ts_data *ts) {
     IOReturn retVal = kIOReturnSuccess;
 
@@ -419,22 +358,9 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *t
 }
 
 bool VoodooI2CGoodixTouchDriver::init_device() {
-    IOReturn retVal = kIOReturnSuccess;
     struct goodix_ts_data *ts;
     ts = (struct goodix_ts_data *)IOMalloc(sizeof(struct goodix_ts_data));
     memset(ts, 0, sizeof(struct goodix_ts_data));
-
-    if (goodix_get_gpio_config(ts) != kIOReturnSuccess) {
-        return retVal;
-    }
-
-    if (ts->gpiod_int && ts->gpiod_rst) {
-        // Reset the controller
-        // It's unclear whether this is required for normal operation, or firmware udpates only
-        if (goodix_reset(ts) != kIOReturnSuccess) {
-            return false;
-        }
-    }
 
     if (goodix_read_version(ts) != kIOReturnSuccess) {
         return false;
@@ -442,15 +368,8 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
 
     ts->chip = goodix_get_chip_data(ts->id);
 
-    if (ts->gpiod_int && ts->gpiod_rst) {
-        // update device config
-        // In goodix.c, this routine would call request_firmware_nowait() and subsequently goodix_config_cb()
-        // It seems this is a routine to update firmware, but unsure
-    }
-    else {
-        if (goodix_configure_dev(ts) != kIOReturnSuccess) {
-            return false;
-        }
+    if (goodix_configure_dev(ts) != kIOReturnSuccess) {
+        return false;
     }
 
     return true;

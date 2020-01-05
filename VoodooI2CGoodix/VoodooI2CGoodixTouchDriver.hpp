@@ -93,24 +93,6 @@ private:
      */
     IOReturn goodix_read_version(struct goodix_ts_data *ts);
 
-    /* Gets GPIO config from ACPI/DT
-     *
-     * @ts: goodix_ts_data pointer
-     */
-    IOReturn goodix_get_gpio_config(struct goodix_ts_data *ts);
-
-    /* Reset device during power on
-     *
-     * @ts: goodix_ts_data pointer
-     */
-    IOReturn goodix_reset(struct goodix_ts_data *ts);
-
-    /* ?
-     *
-     * @ts: goodix_ts_data pointer
-     */
-    IOReturn goodix_int_sync(struct goodix_ts_data *ts);
-
     /* Finish device initialization
      * Must be called from probe to finish initialization of the device.
      * Contains the common initialization code for both devices that
