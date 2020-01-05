@@ -204,7 +204,7 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
     kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
     if (ret != KERN_SUCCESS) {
         read_in_progress = false;
-        IOLog("%s::Thread error while attemping to get input report\n", getName());
+        IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
     } else {
         thread_deallocate(new_thread);
     }
@@ -219,7 +219,10 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
     read_in_progress = false;
 }
 
-void VoodooI2CGoodixTouchDriver::goodix_process_events(struct goodix_ts_data *ts) {
+IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
+    // lol not getting a pointer to ts because this is an interrupt callback
+    struct goodix_ts_data *ts = NULL;
+
     UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
 
     int touch_num;
@@ -227,10 +230,8 @@ void VoodooI2CGoodixTouchDriver::goodix_process_events(struct goodix_ts_data *ts
 
     touch_num = goodix_ts_read_input_report(ts, point_data);
     if (touch_num < 0) {
-        return;
+        return kIOReturnSuccess;
     }
-
-    IOLog("%s::Got %d touches!\n", getName(), touch_num);
 
     /*
      * Bit 4 of the first byte reports the status of the capacitive
@@ -241,10 +242,17 @@ void VoodooI2CGoodixTouchDriver::goodix_process_events(struct goodix_ts_data *ts
     for (i = 0; i < touch_num; i++) {
         goodix_ts_report_touch(ts, &point_data[1 + GOODIX_CONTACT_SIZE * i]);
     }
+
+    IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
+        return retVal;
+    }
+
+    return kIOReturnSuccess;
 }
 
 int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data) {
-
     uint64_t max_timeout;
     int touch_num;
     IOReturn retVal;
@@ -272,6 +280,7 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_dat
         if (data[0] & GOODIX_BUFFER_STATUS_READY) {
             touch_num = data[0] & 0x0f;
             /*
+            // this fails because ts is never passed
             if (touch_num > ts->max_touch_num) {
                 IOLog("%s::Error: got more touches than we should have (got %d, max = %d)\n", getName(), touch_num, ts->max_touch_num);
                 return -1;
@@ -321,7 +330,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *t
 //    input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
 //    input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
 
-    IOLog("%s::Touch at %d, %d with width %d\n", getName(), input_x, input_y, input_w);
+    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
 }
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
@@ -415,13 +424,24 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
 }
 
-/* Adapted from the TFE Driver*/
+/* Adapted from the TFE Driver */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, size_t len) {
     IOReturn retVal = kIOReturnSuccess;
     UInt16 buffer[] {
         OSSwapHostToBigInt16(reg)
     };
     retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
+    return retVal;
+}
+
+/* Adapted from the TFE Driver */
+IOReturn VoodooI2CGoodixTouchDriver::goodix_write_reg(UInt16 reg, UInt8 value) {
+    UInt16 buffer[] {
+        reg,
+        value
+    };
+    IOReturn retVal = kIOReturnSuccess;
+    retVal = api->writeI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer));
     return retVal;
 }
 

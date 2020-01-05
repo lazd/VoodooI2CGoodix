@@ -86,6 +86,7 @@ private:
     void unpublish_multitouch_interface();
 
     IOReturn goodix_read_reg(UInt16 reg, UInt8* values, size_t len);
+    IOReturn goodix_write_reg(UInt16 reg, UInt8 value);
 
     /* Reads goodix touchscreen version
      *
@@ -122,10 +123,8 @@ private:
 
     /* Process incoming events. Called when the IRQ is triggered.
      * Read the current device state, and push the input events to the user space.
-     *
-     * @ts: our goodix_ts_data pointer
      */
-    void goodix_process_events(struct goodix_ts_data *ts);
+    IOReturn goodix_process_events();
 
     void goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data);
 
