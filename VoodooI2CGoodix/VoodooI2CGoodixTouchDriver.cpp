@@ -217,15 +217,12 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
-    // lol not getting a pointer to ts because this is an interrupt callback
-    struct goodix_ts_data *ts = NULL;
-
     UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
 
     int touch_num;
     int i;
 
-    touch_num = goodix_ts_read_input_report(ts, point_data);
+    touch_num = goodix_ts_read_input_report(point_data);
     if (touch_num < 0) {
         return kIOReturnSuccess;
     }
@@ -240,7 +237,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 //    input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
 
     for (i = 0; i < touch_num; i++) {
-        goodix_ts_report_touch(ts, &point_data[1 + GOODIX_CONTACT_SIZE * i], timestamp);
+        goodix_ts_report_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i], timestamp);
     }
 
     IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
@@ -262,7 +259,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     return kIOReturnSuccess;
 }
 
-int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data) {
+int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
     uint64_t max_timeout;
     int touch_num;
     IOReturn retVal;
@@ -319,7 +316,7 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_dat
     return 0;
 }
 
-void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data, AbsoluteTime timestamp) {
+void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, AbsoluteTime timestamp) {
     int id = coor_data[0] & 0x0F;
     int input_x = get_unaligned_le16(&coor_data[1]);
     int input_y = get_unaligned_le16(&coor_data[3]);
@@ -338,12 +335,6 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *t
     input_x = input_y;
     input_y = input_z;
     input_y = 1080 - input_y;
-//    input_mt_slot(ts->input_dev, id);
-//    input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-//    input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
-//    input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
-//    input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
-//    input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
 
 //    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
 
@@ -483,7 +474,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_write_reg(UInt16 reg, UInt8 value) {
 }
 
 /* Ported from goodix.c */
-IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *ts) {
+IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     IOLog("%s::Reading version...\n", getName());
     
     IOReturn retVal = kIOReturnSuccess;
@@ -514,7 +505,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version(struct goodix_ts_data *
     return retVal;
 }
 
-void VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *ts) {
+void VoodooI2CGoodixTouchDriver::goodix_read_config() {
     UInt8 config[GOODIX_CONFIG_MAX_LENGTH];
     IOReturn retVal = kIOReturnSuccess;
 
@@ -560,26 +551,25 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config(struct goodix_ts_data *ts) {
 //    }
 }
 
-IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev(struct goodix_ts_data *ts) {
+IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev() {
     IOReturn retVal = kIOReturnSuccess;
 
-    goodix_read_config(ts);
+    goodix_read_config();
 
     return retVal;
 }
 
 bool VoodooI2CGoodixTouchDriver::init_device() {
-    struct goodix_ts_data *ts;
     ts = (struct goodix_ts_data *)IOMalloc(sizeof(struct goodix_ts_data));
     memset(ts, 0, sizeof(struct goodix_ts_data));
 
-    if (goodix_read_version(ts) != kIOReturnSuccess) {
+    if (goodix_read_version() != kIOReturnSuccess) {
         return false;
     }
 
     ts->chip = goodix_get_chip_data(ts->id);
 
-    if (goodix_configure_dev(ts) != kIOReturnSuccess) {
+    if (goodix_configure_dev() != kIOReturnSuccess) {
         return false;
     }
 

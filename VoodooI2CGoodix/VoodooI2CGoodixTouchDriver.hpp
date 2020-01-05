@@ -56,6 +56,8 @@ private:
     bool read_in_progress;
     bool ready_for_input;
 
+    struct goodix_ts_data *ts;
+
     IOCommandGate* command_gate;
     IOInterruptEventSource* interrupt_source;
     VoodooI2CMultitouchInterface *mt_interface;
@@ -89,27 +91,21 @@ private:
     IOReturn goodix_write_reg(UInt16 reg, UInt8 value);
 
     /* Reads goodix touchscreen version
-     *
-     * @ts: our goodix_ts_data pointer
      */
-    IOReturn goodix_read_version(struct goodix_ts_data *ts);
+    IOReturn goodix_read_version();
 
     /* Finish device initialization
      * Must be called from probe to finish initialization of the device.
      * Contains the common initialization code for both devices that
      * declare gpio pins and devices that do not. It is either called
      * directly from probe or from request_firmware_wait callback.
-     *
-     * @ts: goodix_ts_data pointer
     */
-    IOReturn goodix_configure_dev(struct goodix_ts_data *ts);
+    IOReturn goodix_configure_dev();
 
     /* Read the embedded configuration of the panel
      * Must be called during probe
-     *
-     * @ts: our goodix_ts_data pointer
      */
-    void goodix_read_config(struct goodix_ts_data *ts);
+    void goodix_read_config();
 
     /* Handles any interrupts that the Goodix device generates
      * by spawning a thread that is out of the interrupt context
@@ -126,9 +122,9 @@ private:
      */
     IOReturn goodix_process_events();
 
-    void goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data, AbsoluteTime timestamp);
+    void goodix_ts_report_touch(UInt8 *coor_data, AbsoluteTime timestamp);
 
-    int goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data);
+    int goodix_ts_read_input_report(UInt8 *data);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */
