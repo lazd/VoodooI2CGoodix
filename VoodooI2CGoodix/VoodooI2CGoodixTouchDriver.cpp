@@ -94,6 +94,12 @@ static inline bool str_to_uint16(const char *str, uint16_t *res) {
     return true;
 }
 
+static inline void swap(int& x, int& y) {
+    int z = x;
+    x = y;
+    y = z;
+}
+
 bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
     transducers = NULL;
     if (!super::init(properties)) {
@@ -286,13 +292,10 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
         }
         if (data[0] & GOODIX_BUFFER_STATUS_READY) {
             touch_num = data[0] & 0x0f;
-            /*
-            // this fails because ts is never passed
             if (touch_num > ts->max_touch_num) {
                 IOLog("%s::Error: got more touches than we should have (got %d, max = %d)\n", getName(), touch_num, ts->max_touch_num);
                 return -1;
             }
-            */
 
             if (touch_num > 1) {
                 data += 1 + GOODIX_CONTACT_SIZE;
@@ -323,20 +326,14 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Absolu
     int input_w = get_unaligned_le16(&coor_data[5]);
 
     /* Inversions have to happen before axis swapping */
-//    if (ts->inverted_x)
-//        input_x = ts->abs_x_max - input_x;
-//    if (ts->inverted_y)
-//        input_y = ts->abs_y_max - input_y;
-//    if (ts->swapped_x_y)
-//        swap(input_x, input_y);
+    if (ts->inverted_x)
+        input_x = ts->abs_x_max - input_x;
+    if (ts->inverted_y)
+        input_y = ts->abs_y_max - input_y;
+    if (ts->swapped_x_y)
+        swap(input_x, input_y);
 
-    // Hacky bits
-    int input_z = input_x;
-    input_x = input_y;
-    input_y = input_z;
-    input_y = 1080 - input_y;
-
-//    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
+    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
 
     if (!transducers) {
         IOLog("%s::No transducers, cannot report", getName());
@@ -515,8 +512,8 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
         IOLog("%s::Error reading config (%d), using defaults\n", getName(), retVal);
         ts->abs_x_max = GOODIX_MAX_WIDTH;
         ts->abs_y_max = GOODIX_MAX_HEIGHT;
-//        if (ts->swapped_x_y)
-//            swap(ts->abs_x_max, ts->abs_y_max);
+        if (ts->swapped_x_y)
+            swap(ts->abs_x_max, ts->abs_y_max);
         ts->int_trigger_type = GOODIX_INT_TRIGGER;
         ts->max_touch_num = GOODIX_MAX_CONTACTS;
         return;
@@ -524,16 +521,17 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
 
     ts->abs_x_max = get_unaligned_le16(&config[RESOLUTION_LOC]);
     ts->abs_y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
-//    if (ts->swapped_x_y)
-//        swap(ts->abs_x_max, ts->abs_y_max);
+    if (ts->swapped_x_y)
+        swap(ts->abs_x_max, ts->abs_y_max);
+
     ts->int_trigger_type = config[TRIGGER_LOC] & 0x03;
     ts->max_touch_num = config[MAX_CONTACTS_LOC] & 0x0f;
     if (!ts->abs_x_max || !ts->abs_y_max || !ts->max_touch_num) {
         IOLog("%s::Invalid config (%d), using defaults\n", getName(), retVal);
         ts->abs_x_max = GOODIX_MAX_WIDTH;
         ts->abs_y_max = GOODIX_MAX_HEIGHT;
-//        if (ts->swapped_x_y)
-//            swap(ts->abs_x_max, ts->abs_y_max);
+        if (ts->swapped_x_y)
+            swap(ts->abs_x_max, ts->abs_y_max);
         ts->max_touch_num = GOODIX_MAX_CONTACTS;
     }
 
@@ -543,16 +541,15 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
     IOLog("%s::ts->abs_y_max = %d\n", getName(), ts->abs_y_max);
     IOLog("%s::ts->int_trigger_type = %d\n", getName(), ts->int_trigger_type);
     IOLog("%s::ts->max_touch_num = %d\n", getName(), ts->max_touch_num);
-
-//    if (dmi_check_system(rotated_screen)) {
-//        ts->inverted_x = true;
-//        ts->inverted_y = true;
-//        IOLog("%s::Applying '180 degrees rotated screen' quirk\n");
-//    }
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev() {
     IOReturn retVal = kIOReturnSuccess;
+
+    // Hardcoded values for Chuwi Minibook 8
+    ts->swapped_x_y = false;
+    ts->inverted_x = false;
+    ts->inverted_y = false;
 
     goodix_read_config();
 
@@ -573,7 +570,7 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
         return false;
     }
 
-    if (mt_interface){
+    if (mt_interface) {
         mt_interface->physical_max_x = ts->abs_x_max;
         mt_interface->physical_max_y = ts->abs_y_max;
         mt_interface->logical_max_x = ts->abs_x_max;
