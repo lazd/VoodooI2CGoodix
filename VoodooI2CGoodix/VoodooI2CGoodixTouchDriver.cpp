@@ -25,6 +25,8 @@ struct goodix_ts_data {
     bool swapped_x_y;
     bool inverted_x;
     bool inverted_y;
+    bool swap_x_y_scale;
+    bool swapped_x_y_values;
     unsigned int max_touch_num;
     unsigned int int_trigger_type;
     UInt16 id;
@@ -325,15 +327,43 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Absolu
     int input_y = get_unaligned_le16(&coor_data[3]);
     int input_w = get_unaligned_le16(&coor_data[5]);
 
-    /* Inversions have to happen before axis swapping */
-    if (ts->inverted_x)
-        input_x = ts->abs_x_max - input_x;
-    if (ts->inverted_y)
-        input_y = ts->abs_y_max - input_y;
-    if (ts->swapped_x_y)
-        swap(input_x, input_y);
+    IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
 
-    IOLog("%s::Touch %d at %d, %d with width %d\n", getName(), id, input_x, input_y, input_w);
+    /* Scale swapping has to happen before everything */
+    if (ts->swap_x_y_scale) {
+        input_x = (int)(((float)input_x / ts->abs_x_max) * ts->abs_y_max);
+        input_y = (int)(((float)input_y / ts->abs_y_max) * ts->abs_x_max);
+
+        IOLog("%s::scl: %d,%d\n", getName(), input_x, input_y);
+
+        /* Inversions have to happen before axis swapping */
+        if (ts->inverted_x)
+            input_x = ts->abs_y_max - input_x;
+        if (ts->inverted_y)
+            input_y = ts->abs_x_max - input_y;
+
+        if (ts->inverted_x || ts->inverted_y) {
+            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
+        }
+    }
+    else {
+        /* Inversions have to happen before axis swapping */
+        if (ts->inverted_x)
+            input_x = ts->abs_x_max - input_x;
+        if (ts->inverted_y)
+            input_y = ts->abs_y_max - input_y;
+
+        if (ts->inverted_x || ts->inverted_y) {
+            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
+        }
+    }
+
+    if (ts->swapped_x_y || ts->swapped_x_y_values) {
+        swap(input_x, input_y);
+        IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
+    }
+
+    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_x, input_y, input_w);
 
     if (!transducers) {
         IOLog("%s::No transducers, cannot report", getName());
@@ -548,8 +578,10 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev() {
 
     // Hardcoded values for Chuwi Minibook 8
     ts->swapped_x_y = false;
-    ts->inverted_x = false;
+    ts->inverted_x = true;
     ts->inverted_y = false;
+    ts->swap_x_y_scale = true;
+    ts->swapped_x_y_values = true;
 
     goodix_read_config();
 
