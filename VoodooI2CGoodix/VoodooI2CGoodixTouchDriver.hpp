@@ -109,6 +109,27 @@ private:
      * @ts: our goodix_ts_data pointer
      */
     void goodix_read_config(struct goodix_ts_data *ts);
+
+    /* Handles any interrupts that the Goodix device generates
+     * by spawning a thread that is out of the interrupt context
+     */
+    void interrupt_occurred(OSObject* owner, IOInterruptEventSource* src, int intCount);
+
+    /* Handles input in a threaded manner, then
+     * calls parse_goodix_report via the command gate for synchronisation
+     */
+    void handle_input_threaded();
+
+    /* Process incoming events. Called when the IRQ is triggered.
+     * Read the current device state, and push the input events to the user space.
+     *
+     * @ts: our goodix_ts_data pointer
+     */
+    void goodix_process_events(struct goodix_ts_data *ts);
+
+    void goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data);
+
+    int goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */

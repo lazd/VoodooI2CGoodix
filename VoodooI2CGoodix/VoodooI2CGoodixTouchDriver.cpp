@@ -77,6 +77,26 @@ static const struct goodix_chip_data *goodix_get_chip_data(UInt16 id)
     }
 };
 
+/* Temp: Taken from the Linux kernel source */
+static inline uint16_t __get_unaligned_le16(const uint8_t *p) {
+    return p[0] | p[1] << 8;
+}
+
+static inline uint16_t get_unaligned_le16(const void *p) {
+    return __get_unaligned_le16((const uint8_t *)p);
+}
+
+/* This is supposed to be a sub for kstrtou16(), adapted from https://stackoverflow.com/a/20020795/1170723 */
+static inline bool str_to_uint16(const char *str, uint16_t *res) {
+    char *end;
+    long val = strtol(str, &end, 10);
+    if (end == str || *end != '\0' || val < 0 || val >= 0x10000) {
+        return false;
+    }
+    *res = (uint16_t)val;
+    return true;
+}
+
 bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
     transducers = NULL;
     if (!super::init(properties)) {
@@ -144,11 +164,11 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     }
 
     // set interrupts AFTER device is initialised
-//    interrupt_source = IOInterruptEventSource::interruptEventSource(this, OSMemberFunctionCast(IOInterruptEventAction, this, &VoodooI2CGoodixTouchDriver::interrupt_occurred), api, 0);
-//    if (!interrupt_source) {
-//        IOLog("%s::Could not get interrupt event source\n", getName());
-//        goto start_exit;
-//    }
+    interrupt_source = IOInterruptEventSource::interruptEventSource(this, OSMemberFunctionCast(IOInterruptEventAction, this, &VoodooI2CGoodixTouchDriver::interrupt_occurred), api, 0);
+    if (!interrupt_source) {
+        IOLog("%s::Could not get interrupt event source\n", getName());
+        goto start_exit;
+    }
     publish_multitouch_interface();
      if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
@@ -157,8 +177,8 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     else {
         IOLog("%s::Device initialized\n", getName());
     }
-//    workLoop->addEventSource(interrupt_source);
-//    interrupt_source->enable();
+    workLoop->addEventSource(interrupt_source);
+    interrupt_source->enable();
     PMinit();
     api->joinPMtree(this);
     registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
@@ -172,6 +192,136 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
 start_exit:
     release_resources();
     return false;
+}
+
+void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterruptEventSource* src, int intCount) {
+    if (read_in_progress)
+        return;
+    if (!awake)
+        return;
+    read_in_progress = true;
+    thread_t new_thread;
+    kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
+    if (ret != KERN_SUCCESS) {
+        read_in_progress = false;
+        IOLog("%s::Thread error while attemping to get input report\n", getName());
+    } else {
+        thread_deallocate(new_thread);
+    }
+}
+
+void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
+    if (!ready_for_input) {
+        read_in_progress = false;
+        return;
+    }
+    command_gate->attemptAction(OSMemberFunctionCast(IOCommandGate::Action, this, &VoodooI2CGoodixTouchDriver::goodix_process_events));
+    read_in_progress = false;
+}
+
+void VoodooI2CGoodixTouchDriver::goodix_process_events(struct goodix_ts_data *ts) {
+    UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
+
+    int touch_num;
+    int i;
+
+    touch_num = goodix_ts_read_input_report(ts, point_data);
+    if (touch_num < 0) {
+        return;
+    }
+
+    IOLog("%s::Got %d touches!\n", getName(), touch_num);
+
+    /*
+     * Bit 4 of the first byte reports the status of the capacitive
+     * Windows/Home button.
+     */
+//    input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
+
+    for (i = 0; i < touch_num; i++) {
+        goodix_ts_report_touch(ts, &point_data[1 + GOODIX_CONTACT_SIZE * i]);
+    }
+}
+
+int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(struct goodix_ts_data *ts, UInt8 *data) {
+
+    uint64_t max_timeout;
+    int touch_num;
+    IOReturn retVal;
+
+    AbsoluteTime timestamp;
+    uint64_t timestamp_ns;
+    clock_get_uptime(&timestamp);
+    absolutetime_to_nanoseconds(timestamp, &timestamp_ns);
+
+    /*
+     * The 'buffer status' bit, which indicates that the data is valid, is
+     * not set as soon as the interrupt is raised, but slightly after.
+     * This takes around 10 ms to happen, so we poll for GOODIX_BUFFER_STATUS_TIMEOUT (20ms).
+     */
+    max_timeout = timestamp_ns + GOODIX_BUFFER_STATUS_TIMEOUT;
+    do {
+        clock_get_uptime(&timestamp);
+        absolutetime_to_nanoseconds(timestamp, &timestamp_ns);
+
+        retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, data, GOODIX_CONTACT_SIZE + 1);
+        if (retVal != kIOReturnSuccess) {
+            IOLog("%s::I2C transfer starting coordinate read: %d\n", getName(), retVal);
+            return -1;
+        }
+        if (data[0] & GOODIX_BUFFER_STATUS_READY) {
+            touch_num = data[0] & 0x0f;
+            /*
+            if (touch_num > ts->max_touch_num) {
+                IOLog("%s::Error: got more touches than we should have (got %d, max = %d)\n", getName(), touch_num, ts->max_touch_num);
+                return -1;
+            }
+            */
+
+            if (touch_num > 1) {
+                data += 1 + GOODIX_CONTACT_SIZE;
+                retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR + 1 + GOODIX_CONTACT_SIZE, data, GOODIX_CONTACT_SIZE * (touch_num - 1));
+                if (retVal != kIOReturnSuccess) {
+                    IOLog("%s::I2C transfer error during coordinate read: %d\n", getName(), retVal);
+                    return -1;
+                }
+            }
+
+            return touch_num;
+        }
+
+        usleep_range(1000, 2000); /* Poll every 1 - 2 ms */
+    } while (timestamp_ns < max_timeout);
+
+    /*
+     * The Goodix panel will send spurious interrupts after a
+     * 'finger up' event, which will always cause a timeout.
+     */
+    return 0;
+}
+
+void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(struct goodix_ts_data *ts, UInt8 *coor_data) {
+    int id = coor_data[0] & 0x0F;
+    int input_x = get_unaligned_le16(&coor_data[1]);
+    int input_y = get_unaligned_le16(&coor_data[3]);
+    int input_w = get_unaligned_le16(&coor_data[5]);
+
+    /* Inversions have to happen before axis swapping */
+//    if (ts->inverted_x)
+//        input_x = ts->abs_x_max - input_x;
+//    if (ts->inverted_y)
+//        input_y = ts->abs_y_max - input_y;
+//    if (ts->swapped_x_y)
+//        swap(input_x, input_y);
+
+//    input_mt_slot(ts->input_dev, id);
+//    input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+//    input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
+//    input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
+//    input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
+//    input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
+
+    IOLog("%s::Touch at %d, %d with width %d\n", getName(), input_x, input_y, input_w);
 }
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
@@ -267,32 +417,12 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
 
 /* Adapted from the TFE Driver*/
 IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, size_t len) {
-    IOReturn relVal = kIOReturnSuccess;
+    IOReturn retVal = kIOReturnSuccess;
     UInt16 buffer[] {
         OSSwapHostToBigInt16(reg)
     };
-    relVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
-    return relVal;
-}
-
-/* Temp: Taken from the Linux kernel source */
-static inline uint16_t __get_unaligned_le16(const uint8_t *p) {
-    return p[0] | p[1] << 8;
-}
-
-static inline uint16_t get_unaligned_le16(const void *p) {
-    return __get_unaligned_le16((const uint8_t *)p);
-}
-
-/* This is supposed to be a sub for kstrtou16(), adapted from https://stackoverflow.com/a/20020795/1170723 */
-static inline bool str_to_uint16(const char *str, uint16_t *res) {
-    char *end;
-    long val = strtol(str, &end, 10);
-    if (end == str || *end != '\0' || val < 0 || val >= 0x10000) {
-        return false;
-    }
-    *res = (uint16_t)val;
-    return true;
+    retVal = api->writeReadI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer), values, len);
+    return retVal;
 }
 
 /* Ported from goodix.c */
