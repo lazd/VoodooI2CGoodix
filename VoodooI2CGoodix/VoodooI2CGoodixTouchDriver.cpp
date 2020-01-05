@@ -29,9 +29,6 @@ struct goodix_ts_data {
     unsigned int int_trigger_type;
     UInt16 id;
     UInt16 version;
-    const char *cfg_name;
-    struct gpio_desc *gpiod_int;
-    struct gpio_desc *gpiod_rst;
 };
 
 static const struct goodix_chip_data gt1x_chip_data = {
