@@ -145,7 +145,6 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     return this;
 }
 
-// Actual start sequence commented out for now
 bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
@@ -224,6 +223,7 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
     read_in_progress = false;
 }
 
+/* Ported from goodix.c */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
 
@@ -242,7 +242,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
      * Bit 4 of the first byte reports the status of the capacitive
      * Windows/Home button.
      */
-//    input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
+//   bool home_pressed = point_data[0] & BIT(4);
 
     for (i = 0; i < touch_num; i++) {
         goodix_ts_report_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i], timestamp);
@@ -267,6 +267,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     return kIOReturnSuccess;
 }
 
+/* Ported from goodix.c */
 int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
     uint64_t max_timeout;
     int touch_num;
@@ -321,6 +322,7 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
     return 0;
 }
 
+/* Ported from goodix.c */
 void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, AbsoluteTime timestamp) {
     int id = coor_data[0] & 0x0F;
     int input_x = get_unaligned_le16(&coor_data[1]);
@@ -329,14 +331,14 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Absolu
 
     IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
 
-    /* Scale swapping has to happen before everything */
+    // Scale swapping has to happen before everything
     if (ts->swap_x_y_scale) {
         input_x = (int)(((float)input_x / ts->abs_x_max) * ts->abs_y_max);
         input_y = (int)(((float)input_y / ts->abs_y_max) * ts->abs_x_max);
 
         IOLog("%s::scl: %d,%d\n", getName(), input_x, input_y);
 
-        /* Inversions have to happen before axis swapping */
+        // Inversions have to happen before axis swapping
         if (ts->inverted_x)
             input_x = ts->abs_y_max - input_x;
         if (ts->inverted_y)
@@ -347,7 +349,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Absolu
         }
     }
     else {
-        /* Inversions have to happen before axis swapping */
+        // Inversions have to happen before axis swapping
         if (ts->inverted_x)
             input_x = ts->abs_x_max - input_x;
         if (ts->inverted_y)
@@ -532,6 +534,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
     return retVal;
 }
 
+/* Ported from goodix.c */
 void VoodooI2CGoodixTouchDriver::goodix_read_config() {
     UInt8 config[GOODIX_CONFIG_MAX_LENGTH];
     IOReturn retVal = kIOReturnSuccess;
