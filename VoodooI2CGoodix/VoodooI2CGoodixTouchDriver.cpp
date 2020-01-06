@@ -184,7 +184,8 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     IOLog("%s::VoodooI2CGoodixTouchDriver has started\n", getName());
     registerService();
 
-    // Instantiate the event driver?
+    // Instantiate the event driver
+    // Todo: how to properly attach to this service?
     event_driver = new VoodooI2CGoodixEventDriver();
 
     return true;
@@ -359,6 +360,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
     release_resources();
+
     PMstop();
     IOLog("%s::Stopped\n", getName());
     super::stop(provider);
@@ -399,9 +401,10 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
         api->release();
         api = NULL;
     }
-    // release EventDriver
-    // ??
-    event_driver = NULL;
+    if (event_driver) {
+        // Todo: how to properly release event_driver?
+        event_driver = NULL;
+    }
 }
 
 /* Adapted from the TFE Driver */
