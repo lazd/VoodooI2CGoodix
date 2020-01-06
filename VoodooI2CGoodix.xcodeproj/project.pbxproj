@@ -7,11 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EE80555023C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */; };
+		EE80555123C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp in Headers */ = {isa = PBXBuildFile; fileRef = EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */; };
 		F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */; };
 		F1F613CF2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VoodooI2CGoodixEventDriver.cpp; sourceTree = "<group>"; };
+		EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VoodooI2CGoodixEventDriver.hpp; sourceTree = "<group>"; };
 		F1F613BE20902F4C00F1B282 /* VoodooI2CGoodix.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoodooI2CGoodix.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1F613C320902F4C00F1B282 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1F613CB20902FEE00F1B282 /* goodix.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = goodix.h; sourceTree = "<group>"; };
@@ -53,6 +57,8 @@
 				F1F613CB20902FEE00F1B282 /* goodix.h */,
 				F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */,
 				F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */,
+				EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */,
+				EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */,
 			);
 			path = VoodooI2CGoodix;
 			sourceTree = "<group>";
@@ -64,6 +70,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EE80555123C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp in Headers */,
 				F1F613CF2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -136,6 +143,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */,
+				EE80555023C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
