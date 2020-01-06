@@ -182,6 +182,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     ready_for_input = true;
     setProperty("VoodooI2CServices Supported", OSBoolean::withBoolean(true));
     IOLog("%s::VoodooI2CGoodixTouchDriver has started\n", getName());
+    registerService();
 
     // Instantiate the event driver?
     event_driver = new VoodooI2CGoodixEventDriver();
@@ -351,7 +352,6 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
     IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
 
     // Store touch information
-    touches[id].id = id;
     touches[id].x = input_x;
     touches[id].y = input_y;
     touches[id].width = input_w;
@@ -401,6 +401,7 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
     // release EventDriver
     // ??
+    event_driver = NULL;
 }
 
 /* Adapted from the TFE Driver */

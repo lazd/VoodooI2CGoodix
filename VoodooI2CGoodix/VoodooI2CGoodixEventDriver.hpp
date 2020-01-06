@@ -45,7 +45,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * @return *true*
      */
 
-    bool didTerminate(IOService* provider, IOOptionBits options, bool* defer);
+    bool didTerminate(IOService* provider, IOOptionBits options, bool* defer) override;
 
     const char* getProductName();
 
@@ -58,7 +58,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * @return *true* on successful start, *false* otherwise
      */
 
-    bool handleStart(IOService* provider);
+    bool handleStart(IOService* provider) override;
 
     /* Publishes a <VoodooI2CMultitouchInterface> into the IOService plane
      *
@@ -66,6 +66,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      */
 
     IOReturn publishMultitouchInterface();
+    void unpublishMultitouchInterface();
 
     /* Publishes some miscellaneous properties to the IOService plane
      */
@@ -82,7 +83,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * @return *kIOPMAckImplied* on succesful state change, *kIOReturnError* otherwise
      */
 
-    virtual IOReturn setPowerState(unsigned long whichState, IOService* whatDevice);
+    virtual IOReturn setPowerState(unsigned long whichState, IOService* whatDevice) override;
 
     /* Called during the stop routine to terminate the HID Event Driver
      * @provider The <IOHIDInterface> object which we have matched against.
@@ -90,20 +91,20 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * This function is reponsible for releasing the resources allocated in <start>
      */
 
-    void handleStop(IOService* provider);
+    void handleStop(IOService* provider) override;
 
     /* Implemented to set a certain property
      * @provider The <IOHIDInterface> object which we have matched against.
      */
 
-    bool start(IOService* provider);
+    bool start(IOService* provider) override;
 
-    void reportTouches(Touch *touches, int touchCount);
+    void reportTouches(struct Touch touches[], int numTouches);
 
  protected:
     const char* name;
     bool awake = true;
-    IOHIDInterface* hid_interface;
+//    IOHIDInterface* hid_interface;
     VoodooI2CMultitouchInterface* multitouch_interface;
     OSArray* transducers;
 

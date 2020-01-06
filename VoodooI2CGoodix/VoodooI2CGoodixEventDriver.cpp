@@ -16,46 +16,48 @@
 OSDefineMetaClassAndStructors(VoodooI2CGoodixEventDriver, IOHIDEventService);
 
 bool VoodooI2CGoodixEventDriver::didTerminate(IOService* provider, IOOptionBits options, bool* defer) {
-    if (hid_interface)
-        hid_interface->close(this);
-    hid_interface = NULL;
+//    if (hid_interface)
+//        hid_interface->close(this);
+//    hid_interface = NULL;
 
     return super::didTerminate(provider, options, defer);
 }
 
-void VoodooI2CGoodixEventDriver::reportTouches(Touch *touches, int touchCount) {
-    AbsoluteTime timestamp;
-    clock_get_uptime(&timestamp);
-
-    for (int i = 0; i < touchCount; i++) {
-        Touch touch = touches[i];
-
-        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(touch.id));
-        transducer->type = kDigitiserTransducerFinger;
-
-        transducer->is_valid = true;
-
-        if (multitouch_interface) {
-            transducer->logical_max_x = multitouch_interface->logical_max_x;
-            transducer->logical_max_y = multitouch_interface->logical_max_y;
-        }
-
-        transducer->coordinates.x.update(touch.x, timestamp);
-        transducer->coordinates.y.update(touch.y, timestamp);
-
-        // Todo: do something with touch->width to determine if it's a contact?
-        transducer->tip_switch.update(1, timestamp);
-
-        transducer->id = touch.id;
-        transducer->secondary_id = touch.id;
-    }
-
-    VoodooI2CMultitouchEvent event;
-    event.contact_count = touchCount;
-    event.transducers = transducers;
-    if (multitouch_interface) {
-        multitouch_interface->handleInterruptReport(event, timestamp);
-    }
+void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
+//    AbsoluteTime timestamp;
+//    clock_get_uptime(&timestamp);
+//
+//    IOLog("Need to report %d touches", numTouches);
+//    for (int i = 0; i < numTouches; i++) {
+//        Touch touch = touches[i];
+//        IOLog("Touch %d at %d,%d", i, touch.x, touch.y);
+//
+//        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
+//        transducer->type = kDigitiserTransducerFinger;
+//
+//        transducer->is_valid = true;
+//
+//        if (multitouch_interface) {
+//            transducer->logical_max_x = multitouch_interface->logical_max_x;
+//            transducer->logical_max_y = multitouch_interface->logical_max_y;
+//        }
+//
+//        transducer->coordinates.x.update(touch.x, timestamp);
+//        transducer->coordinates.y.update(touch.y, timestamp);
+//
+//        // Todo: do something with touch->width to determine if it's a contact?
+//        transducer->tip_switch.update(1, timestamp);
+//
+//        transducer->id = i;
+//        transducer->secondary_id = i;
+//    }
+//
+//    VoodooI2CMultitouchEvent event;
+//    event.contact_count = numTouches;
+//    event.transducers = transducers;
+//    if (multitouch_interface) {
+//        multitouch_interface->handleInterruptReport(event, timestamp);
+//    }
 }
 
 const char* VoodooI2CGoodixEventDriver::getProductName() {
@@ -67,10 +69,10 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
         return false;
     }
 
-    hid_interface = OSDynamicCast(IOHIDInterface, provider);
-
-    if (!hid_interface)
-        return false;
+//    hid_interface = OSDynamicCast(IOHIDInterface, provider);
+//
+//    if (!hid_interface)
+//        return false;
 
     name = getProductName();
 
@@ -88,19 +90,15 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     setDigitizerProperties();
 
-    PMinit();
-    hid_interface->joinPMtree(this);
-    registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
+//    PMinit();
+//    hid_interface->joinPMtree(this);
+//    registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
 
     return true;
 }
 
 void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
-    if (multitouch_interface) {
-        multitouch_interface->stop(this);
-        multitouch_interface->detach(this);
-        OSSafeReleaseNULL(multitouch_interface);
-    }
+    unpublishMultitouchInterface();
 
     if (transducers) {
         for (int i = 0; i < transducers->getCount(); i++) {
@@ -112,40 +110,49 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
         OSSafeReleaseNULL(transducers);
     }
 
-    PMstop();
+//    PMstop();
     super::handleStop(provider);
 }
 
 IOReturn VoodooI2CGoodixEventDriver::publishMultitouchInterface() {
-    multitouch_interface = OSTypeAlloc(VoodooI2CMultitouchInterface);
-
-    if (!multitouch_interface ||
-        !multitouch_interface->init(NULL) ||
-        !multitouch_interface->attach(this))
-        goto exit;
-
-    if (!multitouch_interface->start(this)) {
-        multitouch_interface->detach(this);
-        goto exit;
+    multitouch_interface = new VoodooI2CMultitouchInterface();
+    if (!multitouch_interface) {
+        IOLog("%s::No memory to allocate VoodooI2CMultitouchInterface instance\n", getName());
+        goto multitouch_exit;
     }
-
+    if (!multitouch_interface->init(NULL)) {
+        IOLog("%s::Failed to init multitouch interface\n", getName());
+        goto multitouch_exit;
+    }
+    if (!multitouch_interface->attach(this)) {
+        IOLog("%s::Failed to attach multitouch interface\n", getName());
+        goto multitouch_exit;
+    }
+    if (!multitouch_interface->start(this)) {
+        IOLog("%s::Failed to start multitouch interface\n", getName());
+        goto multitouch_exit;
+    }
+    // Assume we are a touchscreen for now
+    multitouch_interface->setProperty(kIOHIDDisplayIntegratedKey, true);
+    // Goodix's Vendor Id
     multitouch_interface->setProperty(kIOHIDVendorIDKey, 0x0416, 32);
     multitouch_interface->setProperty(kIOHIDProductIDKey, 0x0416, 32);
-
-    // Todo: should this be true?
-    multitouch_interface->setProperty(kIOHIDDisplayIntegratedKey, kOSBooleanFalse);
-
-    multitouch_interface->registerService();
-
     return kIOReturnSuccess;
-
-exit:
-    OSSafeReleaseNULL(multitouch_interface);
+multitouch_exit:
+    unpublishMultitouchInterface();
     return kIOReturnError;
 }
 
+void VoodooI2CGoodixEventDriver::unpublishMultitouchInterface() {
+    if (multitouch_interface) {
+        multitouch_interface->stop(this);
+        multitouch_interface->release();
+        multitouch_interface = NULL;
+    }
+}
+
 void VoodooI2CGoodixEventDriver::setDigitizerProperties() {
-    OSDictionary* properties = OSDictionary::withCapacity(1);
+    OSDictionary* properties = OSDictionary::withCapacity(2);
 
     if (!properties)
         return;
