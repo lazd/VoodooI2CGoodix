@@ -16,37 +16,39 @@
 OSDefineMetaClassAndStructors(VoodooI2CGoodixEventDriver, IOHIDEventService);
 
 bool VoodooI2CGoodixEventDriver::didTerminate(IOService* provider, IOOptionBits options, bool* defer) {
-//    if (hid_interface)
-//        hid_interface->close(this);
-//    hid_interface = NULL;
 
     return super::didTerminate(provider, options, defer);
 }
 
-void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
+void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, bool click) {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
 
-    IOLog("Need to report %d touches", numTouches);
+    // Convert logical coordinates to IOFixed and Scaled;
+    IOFixed x = ((logicalX * 1.0f) / multitouch_interface->logical_max_x) * 65535;
+    IOFixed y = ((logicalY * 1.0f) / multitouch_interface->logical_max_y) * 65535;
 
+    // Dispatch the actual event
+    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, click ? 0x1 : 0x0, x, y);
+}
+
+void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
     if (numTouches == 1) {
+        // Initial mouse down event
         Touch touch = touches[0];
-//        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(0));
-//        UInt32 buttons = transducer->tip_switch.value();
-
-        IOFixed x = ((touch.x * 1.0f) / multitouch_interface->logical_max_x) * 65535;
-        IOFixed y = ((touch.y * 1.0f) / multitouch_interface->logical_max_y) * 65535;
-
-        dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, 0x1, x, y);
+        dispatchDigitizerEvent(touch.x, touch.y, true);
     }
     else {
-        // Todo: move the cursor directly to the location between the fingers?
+        // Move the cursor to the location of the first finger, but don't click
+        dispatchDigitizerEvent(touches[0].x, touches[0].y, false);
+
+        AbsoluteTime timestamp;
+        clock_get_uptime(&timestamp);
 
         // Send a multitouch event for scrolls, scales, etc
         for (int i = 0; i < numTouches; i++) {
             Touch touch = touches[i];
 
-            IOLog("Touch %d at %d,%d with max %d,%d", i, touch.x, touch.y, multitouch_interface->logical_max_x, multitouch_interface->logical_max_y);
             VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
             transducer->type = kDigitiserTransducerFinger;
 
@@ -85,11 +87,6 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
         return false;
     }
 
-//    hid_interface = OSDynamicCast(IOHIDInterface, provider);
-//
-//    if (!hid_interface)
-//        return false;
-
     name = getProductName();
 
     publishMultitouchInterface();
@@ -105,10 +102,6 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
     }
 
     setDigitizerProperties();
-
-//    PMinit();
-//    hid_interface->joinPMtree(this);
-//    registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
 
     multitouch_interface->registerService();
 
@@ -128,7 +121,6 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
         OSSafeReleaseNULL(transducers);
     }
 
-//    PMstop();
     super::handleStop(provider);
 }
 

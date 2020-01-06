@@ -111,6 +111,8 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
  private:
     OSSet* attached_hid_pointer_devices;
+
+    void dispatchDigitizerEvent(int logicalX, int logicalY, bool click);
 };
 
 
