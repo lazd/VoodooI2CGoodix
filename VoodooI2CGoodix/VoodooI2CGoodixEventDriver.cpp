@@ -30,13 +30,32 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
 
     // Dispatch the actual event
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, click ? 0x1 : 0x0, x, y);
+
+    last_x = x;
+    last_y = y;
+    last_id = 0;
 }
+
+void VoodooI2CGoodixEventDriver::scheduleLift() {
+    this->timer_source->setTimeoutMS(14);
+}
+
+void VoodooI2CGoodixEventDriver::fingerLift() {
+    AbsoluteTime timestamp;
+    clock_get_uptime(&timestamp);
+
+    dispatchDigitizerEventWithTiltOrientation(timestamp, last_id, kDigitiserTransducerFinger, 0x1, 0x0, last_x, last_y);
+}
+
 
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
     if (numTouches == 1) {
         // Initial mouse down event
         Touch touch = touches[0];
         dispatchDigitizerEvent(touch.x, touch.y, true);
+
+        // Lift a bit later
+        scheduleLift();
     }
     else {
         // Move the cursor to the location of the first finger, but don't click
@@ -87,6 +106,15 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
         return false;
     }
 
+    this->work_loop = getWorkLoop();
+    if (!this->work_loop) {
+        IOLog("%s::Unable to get workloop\n", getName());
+        stop(provider);
+        return false;
+    }
+
+    work_loop->retain();
+
     name = getProductName();
 
     publishMultitouchInterface();
@@ -105,6 +133,13 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     multitouch_interface->registerService();
 
+    timer_source = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::fingerLift));
+
+    if (!timer_source || work_loop->addEventSource(timer_source) != kIOReturnSuccess) {
+        IOLog("%s::Could not add timer source to work loop\n", getName());
+        return false;
+    }
+
     return true;
 }
 
@@ -119,6 +154,11 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
             }
         }
         OSSafeReleaseNULL(transducers);
+    }
+
+    if (timer_source) {
+        work_loop->removeEventSource(timer_source);
+        OSSafeReleaseNULL(timer_source);
     }
 
     super::handleStop(provider);

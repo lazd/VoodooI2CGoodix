@@ -18,6 +18,7 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOService.h>
+#include <IOKit/IOTimerEventSource.h>
 
 #include <IOKit/hidevent/IOHIDEventService.h>
 #include <IOKit/hidsystem/IOHIDTypes.h>
@@ -105,14 +106,23 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
  protected:
     const char* name;
     bool awake = true;
-//    IOHIDInterface* hid_interface;
     VoodooI2CMultitouchInterface* multitouch_interface;
     OSArray* transducers;
 
  private:
-    OSSet* attached_hid_pointer_devices;
+    IOWorkLoop *work_loop;
+    IOTimerEventSource *timer_source;
+
+    UInt32 buttons = 0;
+    IOFixed last_x = 0;
+    IOFixed last_y = 0;
+    SInt32 last_id = 0;
+
+    int click_tick = 0;
 
     void dispatchDigitizerEvent(int logicalX, int logicalY, bool click);
+    void fingerLift();
+    void scheduleLift();
 };
 
 
