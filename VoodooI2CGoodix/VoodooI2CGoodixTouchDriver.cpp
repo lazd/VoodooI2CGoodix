@@ -183,7 +183,6 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     ready_for_input = true;
     setProperty("VoodooI2CServices Supported", OSBoolean::withBoolean(true));
     IOLog("%s::VoodooI2CGoodixTouchDriver has started\n", getName());
-    registerService();
 
     // Instantiate the event driver
     // Todo: how to properly attach to this service?
@@ -205,6 +204,9 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     }
 
     event_driver->initializeMultitouchInterface(ts->abs_x_max, ts->abs_y_max);
+    event_driver->registerService();
+
+    registerService();
 
     return true;
 start_exit:
@@ -421,9 +423,9 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
     if (event_driver) {
         // Todo: how to properly release event_driver?
-        event_driver->release(); // required?
-        event_driver->stop(this);
+//        event_driver->stop(this); // causes crash
         event_driver->detach(this);
+//        event_driver->release(); // required?
         OSSafeReleaseNULL(event_driver);
     }
 }

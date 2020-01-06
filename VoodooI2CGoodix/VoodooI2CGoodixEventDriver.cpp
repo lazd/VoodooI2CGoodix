@@ -28,35 +28,51 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     clock_get_uptime(&timestamp);
 
     IOLog("Need to report %d touches", numTouches);
-    for (int i = 0; i < numTouches; i++) {
-        Touch touch = touches[i];
 
-        IOLog("Touch %d at %d,%d", i, touch.x, touch.y);
-        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
-        transducer->type = kDigitiserTransducerFinger;
+    if (numTouches == 1) {
+        Touch touch = touches[0];
+//        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(0));
+//        UInt32 buttons = transducer->tip_switch.value();
 
-        transducer->is_valid = true;
+        IOFixed x = ((touch.x * 1.0f) / multitouch_interface->logical_max_x) * 65535;
+        IOFixed y = ((touch.y * 1.0f) / multitouch_interface->logical_max_y) * 65535;
 
-        if (multitouch_interface) {
-            transducer->logical_max_x = multitouch_interface->logical_max_x;
-            transducer->logical_max_y = multitouch_interface->logical_max_y;
+        dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, 0x1, x, y);
+    }
+    else {
+        // Todo: move the cursor directly to the location between the fingers?
+
+        // Send a multitouch event for scrolls, scales, etc
+        for (int i = 0; i < numTouches; i++) {
+            Touch touch = touches[i];
+
+            IOLog("Touch %d at %d,%d with max %d,%d", i, touch.x, touch.y, multitouch_interface->logical_max_x, multitouch_interface->logical_max_y);
+            VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
+            transducer->type = kDigitiserTransducerFinger;
+
+            transducer->is_valid = true;
+
+            if (multitouch_interface) {
+                transducer->logical_max_x = multitouch_interface->logical_max_x;
+                transducer->logical_max_y = multitouch_interface->logical_max_y;
+            }
+
+            transducer->coordinates.x.update(touch.x, timestamp);
+            transducer->coordinates.y.update(touch.y, timestamp);
+
+            // Todo: do something with touch->width to determine if it's a contact?
+            transducer->tip_switch.update(1, timestamp);
+
+            transducer->id = i;
+            transducer->secondary_id = i;
         }
 
-        transducer->coordinates.x.update(touch.x, timestamp);
-        transducer->coordinates.y.update(touch.y, timestamp);
-
-        // Todo: do something with touch->width to determine if it's a contact?
-        transducer->tip_switch.update(1, timestamp);
-
-        transducer->id = i;
-        transducer->secondary_id = i;
-    }
-
-    VoodooI2CMultitouchEvent event;
-    event.contact_count = numTouches;
-    event.transducers = transducers;
-    if (multitouch_interface) {
-        multitouch_interface->handleInterruptReport(event, timestamp);
+        VoodooI2CMultitouchEvent event;
+        event.contact_count = numTouches;
+        event.transducers = transducers;
+        if (multitouch_interface) {
+            multitouch_interface->handleInterruptReport(event, timestamp);
+        }
     }
 }
 
@@ -93,6 +109,8 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 //    PMinit();
 //    hid_interface->joinPMtree(this);
 //    registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
+
+    multitouch_interface->registerService();
 
     return true;
 }
