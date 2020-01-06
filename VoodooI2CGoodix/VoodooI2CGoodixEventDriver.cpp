@@ -23,9 +23,39 @@ bool VoodooI2CGoodixEventDriver::didTerminate(IOService* provider, IOOptionBits 
     return super::didTerminate(provider, options, defer);
 }
 
-void VoodooI2CGoodixEventDriver::forwardReport(VoodooI2CMultitouchEvent event, AbsoluteTime timestamp) {
-    if (multitouch_interface)
+void VoodooI2CGoodixEventDriver::reportTouches(Touch *touches, int touchCount) {
+    AbsoluteTime timestamp;
+    clock_get_uptime(&timestamp);
+
+    for (int i = 0; i < touchCount; i++) {
+        Touch touch = touches[i];
+
+        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(touch.id));
+        transducer->type = kDigitiserTransducerFinger;
+
+        transducer->is_valid = true;
+
+        if (multitouch_interface) {
+            transducer->logical_max_x = multitouch_interface->logical_max_x;
+            transducer->logical_max_y = multitouch_interface->logical_max_y;
+        }
+
+        transducer->coordinates.x.update(touch.x, timestamp);
+        transducer->coordinates.y.update(touch.y, timestamp);
+
+        // Todo: do something with touch->width to determine if it's a contact?
+        transducer->tip_switch.update(1, timestamp);
+
+        transducer->id = touch.id;
+        transducer->secondary_id = touch.id;
+    }
+
+    VoodooI2CMultitouchEvent event;
+    event.contact_count = touchCount;
+    event.transducers = transducers;
+    if (multitouch_interface) {
         multitouch_interface->handleInterruptReport(event, timestamp);
+    }
 }
 
 const char* VoodooI2CGoodixEventDriver::getProductName() {
@@ -46,20 +76,15 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     publishMultitouchInterface();
 
-    digitiser.fingers = OSArray::withCapacity(1);
-
-    if (!digitiser.fingers)
+    transducers = OSArray::withCapacity(GOODIX_MAX_CONTACTS);
+    if (!transducers) {
         return false;
-
-    digitiser.styluses = OSArray::withCapacity(1);
-
-    if (!digitiser.styluses)
-        return false;
-
-    digitiser.transducers = OSArray::withCapacity(1);
-
-    if (!digitiser.transducers)
-        return false;
+    }
+    DigitiserTransducerType type = kDigitiserTransducerFinger;
+    for (int i = 0; i < GOODIX_MAX_CONTACTS; i++) {
+        VoodooI2CDigitiserTransducer* transducer = VoodooI2CDigitiserTransducer::transducer(type, NULL);
+        transducers->setObject(transducer);
+    }
 
     setDigitizerProperties();
 
@@ -71,17 +96,20 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 }
 
 void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
-    OSSafeReleaseNULL(digitiser.transducers);
-    OSSafeReleaseNULL(digitiser.wrappers);
-    OSSafeReleaseNULL(digitiser.styluses);
-    OSSafeReleaseNULL(digitiser.fingers);
-
-    OSSafeReleaseNULL(attached_hid_pointer_devices);
-
     if (multitouch_interface) {
         multitouch_interface->stop(this);
         multitouch_interface->detach(this);
         OSSafeReleaseNULL(multitouch_interface);
+    }
+
+    if (transducers) {
+        for (int i = 0; i < transducers->getCount(); i++) {
+            OSObject* object = transducers->getObject(i);
+            if (object) {
+                object->release();
+            }
+        }
+        OSSafeReleaseNULL(transducers);
     }
 
     PMstop();
@@ -117,24 +145,14 @@ exit:
 }
 
 void VoodooI2CGoodixEventDriver::setDigitizerProperties() {
-    OSDictionary* properties = OSDictionary::withCapacity(4);
+    OSDictionary* properties = OSDictionary::withCapacity(1);
 
     if (!properties)
         return;
 
-    if (!digitiser.transducers)
-        goto exit;
-
-    properties->setObject("Contact Count Element", digitiser.contact_count);
-    properties->setObject("Input Mode Element", digitiser.input_mode);
-    properties->setObject("Contact Count Maximum  Element", digitiser.contact_count_maximum);
-    properties->setObject("Button Element", digitiser.button);
-    properties->setObject("Transducer Count", OSNumber::withNumber(digitiser.transducers->getCount(), 32));
+    properties->setObject("Transducer Count", OSNumber::withNumber(GOODIX_MAX_CONTACTS, 32));
 
     setProperty("Digitizer", properties);
-
-exit:
-    OSSafeReleaseNULL(properties);
 }
 
 IOReturn VoodooI2CGoodixEventDriver::setPowerState(unsigned long whichState, IOService* whatDevice) {
@@ -144,8 +162,6 @@ IOReturn VoodooI2CGoodixEventDriver::setPowerState(unsigned long whichState, IOS
 bool VoodooI2CGoodixEventDriver::start(IOService* provider) {
     if (!super::start(provider))
         return false;
-
-    attached_hid_pointer_devices = OSSet::withCapacity(1);
 
     setProperty("VoodooI2CServices Supported", kOSBooleanTrue);
 

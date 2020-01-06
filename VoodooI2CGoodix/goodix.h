@@ -27,4 +27,11 @@
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define usleep_range(min, max)    msleep(DIV_ROUND_UP(min, 1000))
 
+struct Touch {
+    int id;
+    int x;
+    int y;
+    int width;
+};
+
 #endif /* VoodooI2CGoodix_h */

@@ -27,6 +27,7 @@
 #include "../../../Multitouch Support/MultitouchHelpers.hpp"
 
 #include "../../../Dependencies/helpers.hpp"
+#include "goodix.h"
 
 /* Implements an HID Event Driver for HID devices that expose a digitiser usage page.
  *
@@ -37,30 +38,6 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
   OSDeclareDefaultStructors(VoodooI2CGoodixEventDriver);
 
  public:
-    struct {
-        OSArray*           fingers = NULL;
-        OSArray*           styluses = NULL;
-
-        OSArray*           wrappers = NULL;
-        OSArray*
-        transducers= NULL;
-
-        // report level elements
-
-        IOHIDElement*      contact_count;
-        IOHIDElement*      input_mode;
-        IOHIDElement*      button;
-
-        // collection level elements
-
-        IOHIDElement*      contact_count_maximum;
-
-
-        UInt8              current_contact_count = 1;
-        UInt8              report_count = 1;
-        UInt8              current_report = 1;
-    } digitiser;
-
     /* Notification that a provider has been terminated, sent after recursing up the stack, in leaf-to-root order.
      * @options The terminated provider of this object.
      * @defer If there is pending I/O that requires this object to persist, and the provider is not opened by this object set defer to true and call the IOService::didTerminate() implementation when the I/O completes. Otherwise, leave defer set to its default value of false.
@@ -121,13 +98,14 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     bool start(IOService* provider);
 
+    void reportTouches(Touch *touches, int touchCount);
+
  protected:
     const char* name;
     bool awake = true;
     IOHIDInterface* hid_interface;
     VoodooI2CMultitouchInterface* multitouch_interface;
-
-    virtual void forwardReport(VoodooI2CMultitouchEvent event, AbsoluteTime timestamp);
+    OSArray* transducers;
 
  private:
     OSSet* attached_hid_pointer_devices;

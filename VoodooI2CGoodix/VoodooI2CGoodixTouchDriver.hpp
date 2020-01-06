@@ -15,6 +15,7 @@
 #include "../../../Multitouch Support/VoodooI2CMultitouchInterface.hpp"
 #include "../../../Multitouch Support/MultitouchHelpers.hpp"
 #include "../../../Dependencies/helpers.hpp"
+#include "./VoodooI2CGoodixEventDriver.hpp"
 #include "goodix.h"
 
 class VoodooI2CGoodixTouchDriver : public IOService {
@@ -60,9 +61,11 @@ private:
 
     IOCommandGate* command_gate;
     IOInterruptEventSource* interrupt_source;
-    VoodooI2CMultitouchInterface *mt_interface;
-    OSArray* transducers;
     IOWorkLoop* workLoop;
+    VoodooI2CGoodixEventDriver* event_driver;
+
+    struct Touch touches[GOODIX_MAX_CONTACTS];
+    int numTouches;
 
     /* Sends the appropriate packets to
      * initialise the device into multitouch mode
@@ -71,21 +74,10 @@ private:
      */
     bool init_device();
 
-    /* Initialises the VoodooI2C multitouch classes
-     *
-     * @return true if the VoodooI2C multitouch classes were properly initialised
-     */
-    bool publish_multitouch_interface();
-
     /* Releases any allocated resources (called by stop)
      *
      */
     void release_resources();
-
-    /* Releases any allocated VoodooI2C multitouch device
-     *
-     */
-    void unpublish_multitouch_interface();
 
     IOReturn goodix_read_reg(UInt16 reg, UInt8* values, size_t len);
     IOReturn goodix_write_reg(UInt16 reg, UInt8 value);
@@ -122,7 +114,7 @@ private:
      */
     IOReturn goodix_process_events();
 
-    void goodix_ts_report_touch(UInt8 *coor_data, AbsoluteTime timestamp);
+    void goodix_ts_report_touch(UInt8 *coor_data, Touch *touches);
 
     int goodix_ts_read_input_report(UInt8 *data);
 };
