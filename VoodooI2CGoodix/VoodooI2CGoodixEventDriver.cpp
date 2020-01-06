@@ -30,8 +30,8 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     IOLog("Need to report %d touches", numTouches);
     for (int i = 0; i < numTouches; i++) {
         Touch touch = touches[i];
-        IOLog("Touch %d at %d,%d", i, touch.x, touch.y);
 
+        IOLog("Touch %d at %d,%d", i, touch.x, touch.y);
         VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
         transducer->type = kDigitiserTransducerFinger;
 
@@ -137,14 +137,26 @@ IOReturn VoodooI2CGoodixEventDriver::publishMultitouchInterface() {
     // Goodix's Vendor Id
     multitouch_interface->setProperty(kIOHIDVendorIDKey, 0x0416, 32);
     multitouch_interface->setProperty(kIOHIDProductIDKey, 0x0416, 32);
+    IOLog("%s::Published multitouch interface\n", getName());
     return kIOReturnSuccess;
 multitouch_exit:
     unpublishMultitouchInterface();
     return kIOReturnError;
 }
 
+void VoodooI2CGoodixEventDriver::initializeMultitouchInterface(int x, int y) {
+    if (multitouch_interface) {
+        IOLog("%s::Initializing multitouch interface with dimensions %d,%d\n", getName(), x, y);
+        multitouch_interface->physical_max_x = x;
+        multitouch_interface->physical_max_y = y;
+        multitouch_interface->logical_max_x = x;
+        multitouch_interface->logical_max_y = y;
+    }
+}
+
 void VoodooI2CGoodixEventDriver::unpublishMultitouchInterface() {
     if (multitouch_interface) {
+        IOLog("%s::Unpublishing multitouch interface\n", getName());
         multitouch_interface->stop(this);
         multitouch_interface->release();
         multitouch_interface = NULL;

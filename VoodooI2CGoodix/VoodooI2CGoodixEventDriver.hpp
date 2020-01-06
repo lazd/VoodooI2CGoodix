@@ -66,6 +66,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      */
 
     IOReturn publishMultitouchInterface();
+    void initializeMultitouchInterface(int x, int y);
     void unpublishMultitouchInterface();
 
     /* Publishes some miscellaneous properties to the IOService plane

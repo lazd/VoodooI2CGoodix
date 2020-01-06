@@ -141,6 +141,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!super::start(provider)) {
         return false;
     }
+    bool event_driver_initialized = true;
     workLoop = this->getWorkLoop();
     if (!workLoop) {
         IOLog("%s::Could not get a IOWorkLoop instance\n", getName());
@@ -186,7 +187,24 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
 
     // Instantiate the event driver
     // Todo: how to properly attach to this service?
-    event_driver = new VoodooI2CGoodixEventDriver();
+    event_driver = OSTypeAlloc(VoodooI2CGoodixEventDriver);
+    if (!event_driver
+        || !event_driver->init()
+        || !event_driver->attach(this)
+    ) {
+        event_driver_initialized = false;
+    }
+    else if (!event_driver->start(this)) {
+        event_driver->detach(this);
+        event_driver_initialized = false;
+    }
+
+    if (!event_driver_initialized) {
+        IOLog("%s::Could not initialise event_driver\n", getName());
+        OSSafeReleaseNULL(event_driver);
+    }
+
+    event_driver->initializeMultitouchInterface(ts->abs_x_max, ts->abs_y_max);
 
     return true;
 start_exit:
@@ -403,7 +421,10 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
     }
     if (event_driver) {
         // Todo: how to properly release event_driver?
-        event_driver = NULL;
+        event_driver->release(); // required?
+        event_driver->stop(this);
+        event_driver->detach(this);
+        OSSafeReleaseNULL(event_driver);
     }
 }
 
@@ -530,15 +551,6 @@ bool VoodooI2CGoodixTouchDriver::init_device() {
     if (goodix_configure_dev() != kIOReturnSuccess) {
         return false;
     }
-
-    // tell the EventDriver the information
-    // ??
-//    if (mt_interface) {
-//        mt_interface->physical_max_x = ts->abs_x_max;
-//        mt_interface->physical_max_y = ts->abs_y_max;
-//        mt_interface->logical_max_x = ts->abs_x_max;
-//        mt_interface->logical_max_y = ts->abs_y_max;
-//    }
 
     return true;
 }
