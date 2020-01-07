@@ -15,7 +15,7 @@
 #define super IOHIDEventService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixEventDriver, IOHIDEventService);
 
-void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, bool click) {
+void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, UInt32 clickType) {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
 
@@ -24,14 +24,15 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
     IOFixed y = ((logicalY * 1.0f) / multitouch_interface->logical_max_y) * 65535;
 
     // Dispatch the actual event
-    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, click ? 0x1 : 0x0, x, y);
+    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, clickType, x, y);
 
+    // Store the coordinates so we can lift the finger later
     last_x = x;
     last_y = y;
-    last_id = 0;
 }
 
 void VoodooI2CGoodixEventDriver::scheduleLift() {
+    this->timer_source->cancelTimeout();
     this->timer_source->setTimeoutMS(FINGER_LIFT_EVENT_DELAY);
 }
 
@@ -39,21 +40,67 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
 
-    dispatchDigitizerEventWithTiltOrientation(timestamp, last_id, kDigitiserTransducerFinger, 0x1, 0x0, last_x, last_y);
+    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, last_x, last_y);
+
+    click_tick = 0;
+    start_scroll = true;
+
+    // Reset right click status so we're not stuck checking if we're still right clicking
+    if (right_click) {
+        right_click = false;
+    }
 }
 
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
     if (numTouches == 1) {
-        // Initial mouse down event
         Touch touch = touches[0];
-        dispatchDigitizerEvent(touch.x, touch.y, true);
 
-        // Lift a bit later
+        // Check for right clicks
+        UInt16 temp_x = touch.x;
+        UInt16 temp_y = touch.y;
+        if (!right_click) {
+            if (temp_x == compare_input_x && temp_y == compare_input_y) {
+                compare_input_counter = compare_input_counter + 1;
+                compare_input_x = temp_x;
+                compare_input_y = temp_y;
+
+                if (compare_input_counter >= RIGHT_CLICK_TICKS && !right_click) {
+                    compare_input_x = 0;
+                    compare_input_y = 0;
+                    compare_input_counter = 0;
+                    right_click = true;
+                }
+            }
+            else {
+                compare_input_x = temp_x;
+                compare_input_y = temp_y;
+                compare_input_counter = 0;
+            }
+        }
+
+        // Determine what click type to send
+        UInt32 clickType = LEFT_CLICK;
+
+        if (click_tick <= HOVER_TICKS) {
+            clickType = HOVER;
+            click_tick++;
+        }
+
+        if (right_click) {
+            clickType = right_click;
+        }
+
+        dispatchDigitizerEvent(touch.x, touch.y, clickType);
+
+        // Lift the finger a bit later
         scheduleLift();
     }
     else {
+        // Our finger event is multitouch, so we're not clicking
+        click_tick = 0;
+
         // Move the cursor to the location of the first finger, but don't click
-        dispatchDigitizerEvent(touches[0].x, touches[0].y, false);
+        dispatchDigitizerEvent(touches[0].x, touches[0].y, HOVER);
 
         AbsoluteTime timestamp;
         clock_get_uptime(&timestamp);

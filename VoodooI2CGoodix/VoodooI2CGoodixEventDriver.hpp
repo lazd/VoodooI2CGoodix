@@ -29,7 +29,12 @@
 
 #include "../../../Dependencies/helpers.hpp"
 
-#define FINGER_LIFT_EVENT_DELAY 14
+#define FINGER_LIFT_EVENT_DELAY 50
+#define HOVER       0x0
+#define LEFT_CLICK  0x1
+#define RIGHT_CLICK 0x2
+#define HOVER_TICKS 2
+#define RIGHT_CLICK_TICKS   25
 
 struct Touch {
     int x;
@@ -128,7 +133,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * @click Whether this is a click event
      */
 
-    void dispatchDigitizerEvent(int logicalX, int logicalY, bool click);
+    void dispatchDigitizerEvent(int logicalX, int logicalY, UInt32 clickType);
 
     /* Dispatch a finger lift event at the location of the last digitizer event
      */
@@ -143,10 +148,15 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
     IOWorkLoop *work_loop;
     IOTimerEventSource *timer_source;
 
-    UInt32 buttons = 0;
     IOFixed last_x = 0;
     IOFixed last_y = 0;
-    SInt32 last_id = 0;
+
+    int click_tick = 0;
+    bool right_click = false;
+    bool start_scroll = true;
+    UInt16 compare_input_x = 0;
+    UInt16 compare_input_y = 0;
+    int compare_input_counter = 0;
 };
 
 

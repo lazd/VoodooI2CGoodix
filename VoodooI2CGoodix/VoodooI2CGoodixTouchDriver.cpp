@@ -334,14 +334,14 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
     int input_y = get_unaligned_le16(&coor_data[3]);
     int input_w = get_unaligned_le16(&coor_data[5]);
 
-    IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
+//    IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
 
     // Scale swapping has to happen before everything
     if (ts->swap_x_y_scale) {
         input_x = (int)(((float)input_x / ts->abs_x_max) * ts->abs_y_max);
         input_y = (int)(((float)input_y / ts->abs_y_max) * ts->abs_x_max);
 
-        IOLog("%s::scl: %d,%d\n", getName(), input_x, input_y);
+//        IOLog("%s::scl: %d,%d\n", getName(), input_x, input_y);
 
         // Inversions have to happen before axis swapping
         if (ts->inverted_x)
@@ -350,7 +350,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
             input_y = ts->abs_x_max - input_y;
 
         if (ts->inverted_x || ts->inverted_y) {
-            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
+//            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
         }
     }
     else {
@@ -361,16 +361,16 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
             input_y = ts->abs_y_max - input_y;
 
         if (ts->inverted_x || ts->inverted_y) {
-            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
+//            IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
         }
     }
 
     if (ts->swapped_x_y || ts->swapped_x_y_values) {
         swap(input_x, input_y);
-        IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
+//        IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
     }
 
-    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
+//    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
 
     // Store touch information
     touches[id].x = input_x;
