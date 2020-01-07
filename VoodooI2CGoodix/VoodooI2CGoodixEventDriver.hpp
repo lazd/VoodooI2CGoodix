@@ -28,7 +28,14 @@
 #include "../../../Multitouch Support/MultitouchHelpers.hpp"
 
 #include "../../../Dependencies/helpers.hpp"
-#include "goodix.h"
+
+#define FINGER_LIFT_EVENT_DELAY 14
+
+struct Touch {
+    int x;
+    int y;
+    int width;
+};
 
 /* Implements an HID Event Driver for HID devices that expose a digitiser usage page.
  *
@@ -39,8 +46,6 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
   OSDeclareDefaultStructors(VoodooI2CGoodixEventDriver);
 
  public:
-    const char* getProductName();
-
     /* Called during the start routine to set up the HID Event Driver
      * @provider The <IOHIDInterface> object which we have matched against.
      *
@@ -51,20 +56,6 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      */
 
     bool handleStart(IOService* provider) override;
-
-    /* Publishes a <VoodooI2CMultitouchInterface> into the IOService plane
-     *
-     * @return *kIOReturnSuccess* on successful publish, *kIOReturnError* otherwise.
-     */
-
-    IOReturn publishMultitouchInterface();
-    void initializeMultitouchInterface(int x, int y);
-    void unpublishMultitouchInterface();
-
-    /* Publishes some miscellaneous properties to the IOService plane
-     */
-
-    void setDigitizerProperties();
 
     /* Called by the OS in order to notify the driver that the device should change power state
      * @whichState The power state the device is expected to enter represented by either
@@ -88,17 +79,65 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     /* Implemented to set a certain property
      * @provider The <IOHIDInterface> object which we have matched against.
+     *
+     * @return true if started successfully
      */
 
     bool start(IOService* provider) override;
 
+    /* Report the passed touches as multitouch or digitizer events
+     * @touches An array of Touch objects
+     * @numTouches The number of touches in the Touch array
+     */
+
     void reportTouches(struct Touch touches[], int numTouches);
 
+    /* Initialize the multitouch interface with the provided logical size
+     * @logicalMaxX The logical max X coordinate in pixels
+     * @logicalMaxY The logical max Y coordinate in pixels
+     * @numTransducers The maximum number of transducerrs
+     * @vendorId The vendor ID of the touchscreen
+     */
+
+    void configureMultitouchInterface(int logicalMaxX, int logicalMaxY, int numTransducers, UInt32 vendorId);
+
  protected:
-    const char* name;
-    bool awake = true;
     VoodooI2CMultitouchInterface* multitouch_interface;
     OSArray* transducers;
+
+    /* Publishes a <VoodooI2CMultitouchInterface> into the IOService plane
+     *
+     * @return *kIOReturnSuccess* on successful publish, *kIOReturnError* otherwise.
+     */
+
+    IOReturn publishMultitouchInterface();
+
+    /* Unpublishes the <VoodooI2CMultitouchInterface> from the IOService plane
+    */
+
+    void unpublishMultitouchInterface();
+
+    /* Publishes some miscellaneous properties to the IOService plane
+     */
+
+    void setDigitizerProperties();
+
+    /* Dispatch a digitizer event at the given screen coordinate
+     * @logicalX The logical X position of the event
+     * @logicalY The logical Y position of the event
+     * @click Whether this is a click event
+     */
+
+    void dispatchDigitizerEvent(int logicalX, int logicalY, bool click);
+
+    /* Dispatch a finger lift event at the location of the last digitizer event
+     */
+
+    void fingerLift();
+
+    /* Schedule a finger lift event
+     */
+    void scheduleLift();
 
  private:
     IOWorkLoop *work_loop;
@@ -108,12 +147,6 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
     IOFixed last_x = 0;
     IOFixed last_y = 0;
     SInt32 last_id = 0;
-
-    int click_tick = 0;
-
-    void dispatchDigitizerEvent(int logicalX, int logicalY, bool click);
-    void fingerLift();
-    void scheduleLift();
 };
 
 

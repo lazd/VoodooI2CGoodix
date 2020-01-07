@@ -203,7 +203,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         OSSafeReleaseNULL(event_driver);
     }
 
-    event_driver->initializeMultitouchInterface(ts->abs_x_max, ts->abs_y_max);
+    event_driver->configureMultitouchInterface(ts->abs_x_max, ts->abs_y_max, GOODIX_MAX_CONTACTS, GOODIX_VENDOR_ID);
     event_driver->registerService();
 
     registerService();

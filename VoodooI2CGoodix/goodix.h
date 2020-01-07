@@ -1,6 +1,8 @@
 #ifndef VoodooI2CGoodix_h
 #define VoodooI2CGoodix_h
 
+#define GOODIX_VENDOR_ID    0x0416
+
 #define GOODIX_READ_COOR_ADDR        0x814E
 #define GOODIX_GT1X_REG_CONFIG_DATA    0x8050
 #define GOODIX_GT9X_REG_CONFIG_DATA    0x8047
@@ -26,11 +28,5 @@
 #define msleep(x)               IOSleep(x)
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define usleep_range(min, max)    msleep(DIV_ROUND_UP(min, 1000))
-
-struct Touch {
-    int x;
-    int y;
-    int width;
-};
 
 #endif /* VoodooI2CGoodix_h */
