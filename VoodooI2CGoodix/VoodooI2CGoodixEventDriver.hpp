@@ -33,7 +33,7 @@
 #define HOVER       0x0
 #define LEFT_CLICK  0x1
 #define RIGHT_CLICK 0x2
-#define HOVER_TICKS 2
+#define HOVER_TICKS 1
 #define RIGHT_CLICK_TICKS   25
 
 struct Touch {
