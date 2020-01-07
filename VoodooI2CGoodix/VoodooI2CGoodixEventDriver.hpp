@@ -39,15 +39,6 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
   OSDeclareDefaultStructors(VoodooI2CGoodixEventDriver);
 
  public:
-    /* Notification that a provider has been terminated, sent after recursing up the stack, in leaf-to-root order.
-     * @options The terminated provider of this object.
-     * @defer If there is pending I/O that requires this object to persist, and the provider is not opened by this object set defer to true and call the IOService::didTerminate() implementation when the I/O completes. Otherwise, leave defer set to its default value of false.
-     *
-     * @return *true*
-     */
-
-    bool didTerminate(IOService* provider, IOOptionBits options, bool* defer) override;
-
     const char* getProductName();
 
     /* Called during the start routine to set up the HID Event Driver

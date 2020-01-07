@@ -15,11 +15,6 @@
 #define super IOHIDEventService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixEventDriver, IOHIDEventService);
 
-bool VoodooI2CGoodixEventDriver::didTerminate(IOService* provider, IOOptionBits options, bool* defer) {
-
-    return super::didTerminate(provider, options, defer);
-}
-
 void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, bool click) {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
