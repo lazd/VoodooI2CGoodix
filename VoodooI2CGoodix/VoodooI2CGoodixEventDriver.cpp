@@ -43,11 +43,25 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, last_x, last_y);
 
     click_tick = 0;
-    start_scroll = true;
+    scroll_started = false;
 
     // Reset right click status so we're not stuck checking if we're still right clicking
     if (right_click) {
         right_click = false;
+    }
+
+    // Reset all transducers
+    for (int i = 0; i < transducers->getCount(); i++) {
+        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
+
+        transducer->tip_switch.update(0, timestamp);
+    }
+
+    VoodooI2CMultitouchEvent event;
+    event.contact_count = 0;
+    event.transducers = transducers;
+    if (multitouch_interface) {
+        multitouch_interface->handleInterruptReport(event, timestamp);
     }
 }
 
@@ -64,7 +78,7 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
                 compare_input_x = temp_x;
                 compare_input_y = temp_y;
 
-                if (compare_input_counter >= RIGHT_CLICK_TICKS && !right_click) {
+                if (compare_input_counter >= RIGHT_CLICK_TICKS) {
                     compare_input_x = 0;
                     compare_input_y = 0;
                     compare_input_counter = 0;
@@ -81,6 +95,7 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         // Determine what click type to send
         UInt32 clickType = LEFT_CLICK;
 
+        // Todo: do something with touch.width to determine if it should be a click?
         if (click_tick <= HOVER_TICKS) {
             clickType = HOVER;
             click_tick++;
@@ -99,8 +114,15 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         // Our finger event is multitouch, so we're not clicking
         click_tick = 0;
 
-        // Move the cursor to the location of the first finger, but don't click
-        dispatchDigitizerEvent(touches[0].x, touches[0].y, HOVER);
+        if (numTouches == 2 && !scroll_started) {
+            // Move the cursor to the location between the two fingers
+            dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
+
+            scroll_started = true;
+
+            // Wait until the next movement to start scrolling
+            return;
+        }
 
         AbsoluteTime timestamp;
         clock_get_uptime(&timestamp);
@@ -110,23 +132,11 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
             Touch touch = touches[i];
 
             VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
-            transducer->type = kDigitiserTransducerFinger;
-
-            transducer->is_valid = true;
-
-            if (multitouch_interface) {
-                transducer->logical_max_x = multitouch_interface->logical_max_x;
-                transducer->logical_max_y = multitouch_interface->logical_max_y;
-            }
-
             transducer->coordinates.x.update(touch.x, timestamp);
             transducer->coordinates.y.update(touch.y, timestamp);
 
-            // Todo: do something with touch->width to determine if it's a contact?
+            transducer->is_valid = true; // Todo: is this required?
             transducer->tip_switch.update(1, timestamp);
-
-            transducer->id = i;
-            transducer->secondary_id = i;
         }
 
         VoodooI2CMultitouchEvent event;
@@ -135,6 +145,9 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         if (multitouch_interface) {
             multitouch_interface->handleInterruptReport(event, timestamp);
         }
+
+        // Make sure we schedule a lift for when the gesture ends to reset state
+        scheduleLift();
     }
 }
 
@@ -218,17 +231,6 @@ void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, i
     if (multitouch_interface) {
         IOLog("%s::Configuring multitouch interface with dimensions %d,%d and %d transducers\n", getName(), logicalMaxX, logicalMaxY, numTransducers);
 
-        transducers = OSArray::withCapacity(numTransducers);
-        if (!transducers) {
-            IOLog("%s::No memory to allocate transducers array\n", getName());
-            return;
-        }
-        DigitiserTransducerType type = kDigitiserTransducerFinger;
-        for (int i = 0; i < numTransducers; i++) {
-            VoodooI2CDigitiserTransducer* transducer = VoodooI2CDigitiserTransducer::transducer(type, NULL);
-            transducers->setObject(transducer);
-        }
-
         multitouch_interface->physical_max_x = logicalMaxX;
         multitouch_interface->physical_max_y = logicalMaxY;
         multitouch_interface->logical_max_x = logicalMaxX;
@@ -239,6 +241,24 @@ void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, i
 
         setProperty(kIOHIDVendorIDKey, vendorId, 32);
         setProperty(kIOHIDProductIDKey, vendorId, 32);
+
+        transducers = OSArray::withCapacity(numTransducers);
+        if (!transducers) {
+            IOLog("%s::No memory to allocate transducers array\n", getName());
+            return;
+        }
+        DigitiserTransducerType type = kDigitiserTransducerFinger;
+        for (int i = 0; i < numTransducers; i++) {
+            VoodooI2CDigitiserTransducer* transducer = VoodooI2CDigitiserTransducer::transducer(type, NULL);
+            transducer->type = kDigitiserTransducerFinger;
+
+            transducer->logical_max_x = multitouch_interface->logical_max_x;
+            transducer->logical_max_y = multitouch_interface->logical_max_y;
+            transducer->id = i;
+            transducer->secondary_id = i;
+
+            transducers->setObject(transducer);
+        }
 
         OSDictionary* properties = OSDictionary::withCapacity(2);
 

@@ -153,7 +153,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     int click_tick = 0;
     bool right_click = false;
-    bool start_scroll = true;
+    bool scroll_started = false;
     UInt16 compare_input_x = 0;
     UInt16 compare_input_y = 0;
     int compare_input_counter = 0;
