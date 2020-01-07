@@ -197,6 +197,8 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
         OSSafeReleaseNULL(timer_source);
     }
 
+    OSSafeReleaseNULL(work_loop);
+
     super::handleStop(provider);
 }
 
@@ -276,8 +278,8 @@ void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, i
 void VoodooI2CGoodixEventDriver::unpublishMultitouchInterface() {
     if (multitouch_interface) {
         multitouch_interface->stop(this);
-        multitouch_interface->release();
-        multitouch_interface = NULL;
+        multitouch_interface->detach(this);
+        OSSafeReleaseNULL(multitouch_interface);
     }
 }
 
