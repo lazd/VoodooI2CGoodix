@@ -102,7 +102,7 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         }
 
         if (right_click) {
-            clickType = right_click;
+            clickType = RIGHT_CLICK;
         }
 
         dispatchDigitizerEvent(touch.x, touch.y, clickType);
