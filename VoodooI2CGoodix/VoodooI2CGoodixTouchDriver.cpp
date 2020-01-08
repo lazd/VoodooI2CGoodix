@@ -422,10 +422,8 @@ void VoodooI2CGoodixTouchDriver::release_resources() {
         api = NULL;
     }
     if (event_driver) {
-        // Todo: how to properly release event_driver?
-//        event_driver->stop(this); // causes crash
+        event_driver->stop(this);
         event_driver->detach(this);
-//        event_driver->release(); // required?
         OSSafeReleaseNULL(event_driver);
     }
 }
