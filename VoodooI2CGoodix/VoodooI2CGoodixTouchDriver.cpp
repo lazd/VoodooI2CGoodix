@@ -295,7 +295,7 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
 
         retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, data, GOODIX_CONTACT_SIZE + 1);
         if (retVal != kIOReturnSuccess) {
-            IOLog("%s::I2C transfer starting coordinate read: %d\n", getName(), retVal);
+            IOLog("%s::I2C transfer error starting coordinate read: %d\n", getName(), retVal);
             return -1;
         }
         if (data[0] & GOODIX_BUFFER_STATUS_READY) {
