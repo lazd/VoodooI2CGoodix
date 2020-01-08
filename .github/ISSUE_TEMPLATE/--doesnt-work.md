@@ -1,37 +1,28 @@
 ---
-name: "💣 Kernel panic"
-about: VoodooI2CGoodix is causing a kernel panic
+name: "🚫 It doesn't work"
+about: VoodooI2CGoodix is not working
 title: ''
-labels: bug, kernel panic
+labels: question
 assignees: ''
 
 ---
 
-## Panic
-<!--
-	1. Ensure you have the keepsyms=1 boot argument in your Clover config.plist
-	2. After restart, the system will present you with a dialog asking you to report the issue
-	3. Click "Report" and copy the full text of the kernel panic and paste it below
--->
+## Prerequisites
+<!-- Do not submit an issue unless you can check all of these boxes, or it will be closed immediately -->
+<!-- Check boxes by placing an x in them: [x] -->
 
-```
-<!-- Paste your panic here -->
-```
-
-
-## Steps to reproduce
-
-1. Touch something...
-2. Do something else...
-3. Panic!
-
+* [ ] I have followed the [VoodooI2C installation instructions](https://voodooi2c.github.io/#Installation/Installation)
+* [ ] I have [patched my DSDT](https://github.com/alexandred/VoodooI2C-Patches)
+* [ ] I have followed the [GPIO pinning guide](https://voodooi2c.github.io/#GPIO%20Pinning/GPIO%20Pinning)
+* [ ] VoodooI2C recognizes my I2C controllers during a verbose boot
+* [ ] I have followed the [VoodooI2CGoodix installation instructions](https://github.com/lazd/VoodooI2CGoodix#installation)
+* [ ] I have tried tapping my screen and nothing happens
 
 ## Environment
  - **Computer**: <!-- Chuwi Minibook 8 -->
  - **VoodooI2C version:** <!-- 2.2 -->
  - **VoodooI2CGoodix version:** <!-- 0.1.0 -->
  - **macOS Version:** <!-- 10.5.2 19C57 -->
-
 
 ## `DSDT.zip`
 <!--

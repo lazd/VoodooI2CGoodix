@@ -27,6 +27,7 @@ assignees: ''
 
 
 ## Environment
+ - **Computer**: <!-- Chuwi Minibook 8 -->
  - **VoodooI2C version:** <!-- 2.2 -->
  - **VoodooI2CGoodix version:** <!-- 0.1.0 -->
  - **macOS Version:** <!-- 10.5.2 19C57 -->
@@ -38,17 +39,18 @@ assignees: ''
 	3. Attach a .zip file containing your DSDT.aml
 -->
 
+
 ## `IOReg.zip`
 <!--
-	1. Dump your IORegistry with  these instructions: https://www.tonymacx86.com/threads/guide-how-to-make-a-copy-of-ioreg.58368/
+	1. Dump your IORegistry with these instructions: https://www.tonymacx86.com/threads/guide-how-to-make-a-copy-of-ioreg.58368/
 	2. Attach a .zip file containing your IOReg
 -->
 
 
-## `VoodooI2CLog.txt`
+## `VoodooI2C.log`
 <!--
-  1. Dump logs with the following command:
-	sudo log show --predicate "processID == 0" --last 10m --debug --info | grep VoodooI2C > ~/Desktop/VoodooI2CLog.txt
+  1. Run the following command in Terminal to dump logs from the last 10 minutes:
+	sudo log show --predicate "processID == 0" --last 10m --debug --info | grep VoodooI2C > ~/Desktop/VoodooI2C.log
   2. Attach the log file
 -->
 
