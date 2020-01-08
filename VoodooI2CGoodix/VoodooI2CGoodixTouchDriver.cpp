@@ -235,6 +235,10 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
         read_in_progress = false;
         return;
     }
+    if (!command_gate) {
+        read_in_progress = false;
+        return;
+    }
     command_gate->attemptAction(OSMemberFunctionCast(IOCommandGate::Action, this, &VoodooI2CGoodixTouchDriver::goodix_process_events));
     read_in_progress = false;
 }

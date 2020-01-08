@@ -203,7 +203,7 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
 }
 
 IOReturn VoodooI2CGoodixEventDriver::publishMultitouchInterface() {
-    multitouch_interface = new VoodooI2CMultitouchInterface();
+    multitouch_interface = OSTypeAlloc(VoodooI2CMultitouchInterface);
     if (!multitouch_interface) {
         IOLog("%s::No memory to allocate VoodooI2CMultitouchInterface instance\n", getName());
         goto multitouch_exit;
