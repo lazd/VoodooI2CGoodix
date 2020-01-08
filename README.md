@@ -34,7 +34,7 @@ Ping us [on gitter](https://gitter.im/lazd/VoodooI2CGoodix) and include a `.zip`
 sudo log show --predicate "processID == 0" --last 10m --debug --info | grep VoodooI2C > ~/Desktop/VoodooI2CLog.txt
 ```
 
-3. `DSDT.aml`: Include your patched DSDT from `/Volumes/EFI/EFI/Clover/A/Volumes/EFI/EFI/CLOVER/ACPI/patched/DSDT.aml`.
+3. `DSDT.aml`: Include your patched DSDT from `/Volumes/EFI/EFI/CLOVER/ACPI/patched/DSDT.aml`.
 
 4. `IOReg`: Include a copy of the IOReg dumped by [IORegistryExplorer v2.1](https://www.tonymacx86.com/threads/guide-how-to-make-a-copy-of-ioreg.58368/)
 
