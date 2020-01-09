@@ -391,8 +391,21 @@ void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOService* whatDevice) {
-    if (whatDevice != this) {
-        return kIOReturnInvalid;
+    if (powerState == 0) {
+        if (awake) {
+            awake = false;
+            while (read_in_progress) {
+                IOLog("%s::Waiting for read to finish before sleeping...\n", getName());
+                IOSleep(10);
+            }
+            IOLog("%s::Going to sleep\n", getName());
+        }
+    }
+    else {
+        if (!awake) {
+            awake = true;
+            IOLog("%s::Waking up\n", getName());
+        }
     }
 
     return kIOPMAckImplied;
