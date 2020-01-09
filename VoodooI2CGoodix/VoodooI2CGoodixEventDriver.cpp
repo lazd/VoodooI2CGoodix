@@ -7,8 +7,6 @@
 //
 
 #include "VoodooI2CGoodixEventDriver.hpp"
-
-#include "VoodooI2CGoodixEventDriver.hpp"
 #include <IOKit/hid/IOHIDInterface.h>
 #include <IOKit/IOLib.h>
 
@@ -22,6 +20,8 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
     // Convert logical coordinates to IOFixed and Scaled;
     IOFixed x = ((logicalX * 1.0f) / multitouch_interface->logical_max_x) * 65535;
     IOFixed y = ((logicalY * 1.0f) / multitouch_interface->logical_max_y) * 65535;
+
+    checkRotation(&x, &y);
 
     // Dispatch the actual event
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, clickType, x, y);
@@ -66,6 +66,15 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
 }
 
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
+    if (!active_framebuffer) {
+        active_framebuffer = getFramebuffer();
+    }
+
+    if (active_framebuffer) {
+        OSNumber* number = OSDynamicCast(OSNumber, active_framebuffer->getProperty(kIOFBTransformKey));
+        current_rotation = number->unsigned8BitValue() / 0x10;
+    }
+
     if (numTouches == 1) {
         Touch touch = touches[0];
 
@@ -111,6 +120,9 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         scheduleLift();
     }
     else {
+        // Set rotation for gestures
+        multitouch_interface->setProperty(kIOFBTransformKey, current_rotation, 8);
+
         // Our finger event is multitouch, so we're not clicking
         click_tick = 0;
 
@@ -168,6 +180,8 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     timer_source = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::fingerLift));
 
+    active_framebuffer = getFramebuffer();
+
     if (!timer_source || work_loop->addEventSource(timer_source) != kIOReturnSuccess) {
         IOLog("%s::Could not add timer source to work loop\n", getName());
         return false;
@@ -195,6 +209,8 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
     }
 
     OSSafeReleaseNULL(work_loop);
+
+//    OSSafeReleaseNULL(active_framebuffer); // Todo: do we need to do this?
 
     super::handleStop(provider);
 }
@@ -291,4 +307,48 @@ bool VoodooI2CGoodixEventDriver::start(IOService* provider) {
     setProperty("VoodooI2CServices Supported", kOSBooleanTrue);
 
     return true;
+}
+
+IOFramebuffer* VoodooI2CGoodixEventDriver::getFramebuffer() {
+    IODisplay* display = NULL;
+    IOFramebuffer* framebuffer = NULL;
+
+    OSDictionary *match = serviceMatching("IODisplay");
+    OSIterator *iterator = getMatchingServices(match);
+
+    if (iterator) {
+        display = OSDynamicCast(IODisplay, iterator->getNextObject());
+
+        if (display) {
+            IOLog("%s::Got active display\n", getName());
+
+            framebuffer = OSDynamicCast(IOFramebuffer, display->getParentEntry(gIOServicePlane)->getParentEntry(gIOServicePlane));
+
+            if (framebuffer) {
+                IOLog("%s::Got active framebuffer\n", getName());
+            }
+        }
+
+        OSSafeReleaseNULL(iterator);
+    }
+
+    OSSafeReleaseNULL(match);
+
+    return framebuffer;
+}
+
+void VoodooI2CGoodixEventDriver::checkRotation(IOFixed* x, IOFixed* y) {
+    if (active_framebuffer) {
+        if (current_rotation & kIOFBSwapAxes) {
+            IOFixed old_x = *x;
+            *x = *y;
+            *y = old_x;
+        }
+        if (current_rotation & kIOFBInvertX) {
+            *x = 65535 - *x;
+        }
+        if (current_rotation & kIOFBInvertY) {
+            *y = 65535 - *y;
+        }
+    }
 }

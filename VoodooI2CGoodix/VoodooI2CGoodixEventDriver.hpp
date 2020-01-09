@@ -18,10 +18,14 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOService.h>
+#include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOTimerEventSource.h>
 
 #include <IOKit/hidevent/IOHIDEventService.h>
 #include <IOKit/hidsystem/IOHIDTypes.h>
+
+#include <IOKit/graphics/IOFramebuffer.h>
+#include <IOKit/graphics/IODisplay.h>
 
 #include "../../../Multitouch Support/VoodooI2CDigitiserStylus.hpp"
 #include "../../../Multitouch Support/VoodooI2CMultitouchInterface.hpp"
@@ -144,9 +148,24 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      */
     void scheduleLift();
 
- private:
+    /* Get the active framebuffer
+     */
+    IOFramebuffer* getFramebuffer();
+
+    /* Rotate coordinates to match current framebuffer's rotation
+     *
+     * @x A pointer to the X coordinate
+     * @y A pointer to the Y coordinate
+     */
+
+    void checkRotation(IOFixed* x, IOFixed* y);
+
+private:
     IOWorkLoop *work_loop;
     IOTimerEventSource *timer_source;
+    IOFramebuffer* active_framebuffer = NULL;
+
+    UInt8 current_rotation;
 
     IOFixed last_x = 0;
     IOFixed last_y = 0;
