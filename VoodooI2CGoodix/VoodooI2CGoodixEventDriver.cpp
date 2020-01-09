@@ -119,9 +119,6 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
             dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
 
             scroll_started = true;
-
-            // Wait until the next movement to start scrolling
-            return;
         }
 
         AbsoluteTime timestamp;
