@@ -1,7 +1,7 @@
 
 [![Releases](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)](https://github.com/lazd/VoodooI2CGoodix/releases) 
 [![Gitter chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg?colorB=ed1965)](https://gitter.im/lazd/VoodooI2CGoodix) 
-[![Donate on patreon](https://img.shields.io/badge/patreon-donate-green.svg)](https://www.patreon.com/lazd)
+[![Donate on Patreon](https://img.shields.io/badge/patreon-donate-green.svg)](https://www.patreon.com/lazd)
 
 
 
@@ -27,35 +27,15 @@ You will want to set your scroll direction to "Natural" in the Trackpad preferen
 
 You can also right click by tapping and holding.
 
-## Debugging
+## Support
 
-Ping us [on gitter](https://gitter.im/lazd/VoodooI2CGoodix) and include a `.zip` file with the following:
+If you're having problems with VoodooI2CGoodix, you've found a bug, or you have a great idea for a new feature, [file an issue](https://github.com/lazd/VoodooI2CGoodix/issues/new/choose)!
 
-1. `panic.txt`: If you're experiencing a kernel panic, ensure you have the `keepsyms=1` boot argument in your Clover `config.plist` so that your system will present you with a dialog to report the issue after the panic. Click "Report" and copy the full text of the kernel panic and include it.
+You can also chat with us [on gitter](https://gitter.im/lazd/VoodooI2CGoodix), but be prepared to provide all the same information required to file an issue.
 
-2. `VoodooI2CLog.txt`: Logs releated to VoodooI2C. Dump logs with the following command:
+## Sponsor
 
-```
-sudo log show --predicate "processID == 0" --last 10m --debug --info | grep VoodooI2C > ~/Desktop/VoodooI2CLog.txt
-```
-
-3. `DSDT.aml`: Include your patched DSDT from `/Volumes/EFI/EFI/CLOVER/ACPI/patched/DSDT.aml`.
-
-4. `IOReg`: Include a copy of the IOReg dumped by [IORegistryExplorer v2.1](https://www.tonymacx86.com/threads/guide-how-to-make-a-copy-of-ioreg.58368/)
-
-5. `info.txt`: Include the following information:
-
-* macOS version and build number from Apple Menu -> About This Mac (i.e. 10.5.2 19C57)
-* `VoodooI2C.kext` version number (right click, Get Info)
-* `VoodooI2CGoodix.kext` version number (right click, Get Info)
-
-i.e.
-
-```
-macOS 10.5.2 19C57
-VoodooI2C 2.3
-VoodooI2CGoodix 0.2.0
-```
+If you like VoodooI2CGoodix, you can donate to support its continued development by donating on [Patreon](https://www.patreon.com/lazd)!
 
 ## License
 
