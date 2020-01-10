@@ -1,4 +1,9 @@
-![release](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)  [![Gitter chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg?colorB=ed1965)](https://gitter.im/lazd/VoodooI2CGoodix)
+
+[![Releases](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)](https://github.com/lazd/VoodooI2CGoodix/releases) 
+[![Gitter chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg?colorB=ed1965)](https://gitter.im/lazd/VoodooI2CGoodix) 
+[![Donate on patreon](https://img.shields.io/badge/patreon-donate-green.svg)](https://www.patreon.com/lazd)
+
+
 
 # VoodooI2CGoodix
 
