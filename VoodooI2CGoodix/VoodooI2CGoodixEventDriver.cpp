@@ -29,11 +29,13 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
     // Store the coordinates so we can lift the finger later
     last_x = x;
     last_y = y;
+    IOLog("%s::Dispatching a click event\n", getName());
 }
 
 void VoodooI2CGoodixEventDriver::scheduleLift() {
     this->timer_source->cancelTimeout();
     this->timer_source->setTimeoutMS(FINGER_LIFT_EVENT_DELAY);
+    IOLog("%s::Scheduling finger lift\n", getName());
 }
 
 void VoodooI2CGoodixEventDriver::fingerLift() {
@@ -63,6 +65,8 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     if (multitouch_interface) {
         multitouch_interface->handleInterruptReport(event, timestamp);
     }
+
+    IOLog("%s::Dispatching a finger lift\n", getName());
 }
 
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
@@ -76,6 +80,8 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     }
 
     if (numTouches == 1) {
+        IOLog("%s::Processing a single touch event\n", getName());
+
         Touch touch = touches[0];
 
         // Check for right clicks
@@ -120,6 +126,7 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
         scheduleLift();
     }
     else {
+        IOLog("%s::Processing a multitouch event\n", getName());
         // Set rotation for gestures
         multitouch_interface->setProperty(kIOFBTransformKey, current_rotation, 8);
 

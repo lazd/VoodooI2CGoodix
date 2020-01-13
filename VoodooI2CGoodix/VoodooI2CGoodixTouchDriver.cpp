@@ -165,7 +165,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         goto start_exit;
     }
 
-     if (!init_device()) {
+    if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
         goto start_exit;
     }
@@ -216,15 +216,39 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
         return;
     if (!awake)
         return;
-    read_in_progress = true;
-    thread_t new_thread;
-    kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
-    if (ret != KERN_SUCCESS) {
-        read_in_progress = false;
-        IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
-    } else {
-        thread_deallocate(new_thread);
+
+    // Check for touches before spawning a thread
+    numTouches = goodix_get_touch_num();
+    if (numTouches > 0) {
+        read_in_progress = true;
+        thread_t new_thread;
+        kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
+        if (ret != KERN_SUCCESS) {
+            read_in_progress = false;
+            IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
+        } else {
+            thread_deallocate(new_thread);
+        }
     }
+    else {
+        IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
+        if (retVal != kIOReturnSuccess) {
+            IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
+        }
+    }
+}
+
+int VoodooI2CGoodixTouchDriver::goodix_get_touch_num() {
+    IOReturn retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, point_data, GOODIX_CONTACT_SIZE + 1);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::I2C transfer error reading number of touches: %d\n", getName(), retVal);
+        return -1;
+    }
+    if (point_data[0] & GOODIX_BUFFER_STATUS_READY) {
+        numTouches = point_data[0] & 0x0f;
+    }
+
+    return numTouches;
 }
 
 void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
@@ -242,10 +266,8 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
 
 /* Ported from goodix.c */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
-    UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
-
     numTouches = goodix_ts_read_input_report(point_data);
-    if (numTouches < 0) {
+    if (numTouches <= 0) {
         return kIOReturnSuccess;
     }
 
@@ -272,6 +294,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 
     return kIOReturnSuccess;
 }
+
 
 /* Ported from goodix.c */
 int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
