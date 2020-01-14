@@ -65,7 +65,6 @@ private:
     VoodooI2CGoodixEventDriver* event_driver;
 
     struct Touch touches[GOODIX_MAX_CONTACTS];
-    UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
     int numTouches;
 
     /* Sends the appropriate packets to
@@ -117,9 +116,9 @@ private:
 
     void goodix_ts_report_touch(UInt8 *coor_data, Touch *touches);
 
-    /* Get the number of touches. Does not send the end command
+    /* Send the interrupt end command
      */
-    int goodix_get_touch_num();
+    IOReturn goodix_end_cmd();
 
     int goodix_ts_read_input_report(UInt8 *data);
 };

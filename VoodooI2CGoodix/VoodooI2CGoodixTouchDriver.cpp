@@ -212,62 +212,52 @@ start_exit:
 }
 
 void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterruptEventSource* src, int intCount) {
-    if (read_in_progress)
+    if (read_in_progress || !awake) {
         return;
-    if (!awake)
-        return;
-
-    // Check for touches before spawning a thread
-    numTouches = goodix_get_touch_num();
-    if (numTouches > 0) {
-        read_in_progress = true;
-        thread_t new_thread;
-        kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
-        if (ret != KERN_SUCCESS) {
-            read_in_progress = false;
-            IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
-        } else {
-            thread_deallocate(new_thread);
-        }
+    }
+    read_in_progress = true;
+    thread_t new_thread;
+    kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
+    if (ret != KERN_SUCCESS) {
+        read_in_progress = false;
+        IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
     }
     else {
-        IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
-        if (retVal != kIOReturnSuccess) {
-            IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
-        }
+        thread_deallocate(new_thread);
     }
-}
-
-int VoodooI2CGoodixTouchDriver::goodix_get_touch_num() {
-    IOReturn retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, point_data, GOODIX_CONTACT_SIZE + 1);
-    if (retVal != kIOReturnSuccess) {
-        IOLog("%s::I2C transfer error reading number of touches: %d\n", getName(), retVal);
-        return -1;
-    }
-    if (point_data[0] & GOODIX_BUFFER_STATUS_READY) {
-        numTouches = point_data[0] & 0x0f;
-    }
-
-    return numTouches;
 }
 
 void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
-    if (!ready_for_input) {
-        read_in_progress = false;
-        return;
-    }
-    if (!command_gate) {
+    if (!ready_for_input || !command_gate) {
         read_in_progress = false;
         return;
     }
     command_gate->attemptAction(OSMemberFunctionCast(IOCommandGate::Action, this, &VoodooI2CGoodixTouchDriver::goodix_process_events));
+    goodix_end_cmd();
     read_in_progress = false;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_end_cmd() {
+    IOReturn retVal;
+
+    retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 1);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::I2C write end_cmd 1 error: %d\n", getName(), retVal);
+    }
+    retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::I2C write end_cmd 0 error: %d\n", getName(), retVal);
+    }
+    return retVal;
 }
 
 /* Ported from goodix.c */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
+    UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
+
     numTouches = goodix_ts_read_input_report(point_data);
     if (numTouches <= 0) {
+        IOLog("%s::Got no touches on an interrupt...\n", getName());
         return kIOReturnSuccess;
     }
 
@@ -281,12 +271,6 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
         goodix_ts_report_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i], touches);
     }
 
-    IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
-    if (retVal != kIOReturnSuccess) {
-        IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
-        return retVal;
-    }
-
     if (numTouches > 0) {
         // send the event into the event driver
         event_driver->reportTouches(touches, numTouches);
@@ -294,7 +278,6 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 
     return kIOReturnSuccess;
 }
-
 
 /* Ported from goodix.c */
 int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
@@ -338,12 +321,14 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
                 }
             }
 
+            IOLog("%s::Got %d touches\n", getName(), touch_num);
             return touch_num;
         }
 
         usleep_range(1000, 2000); /* Poll every 1 - 2 ms */
     } while (timestamp_ns < max_timeout);
 
+    IOLog("%s::Got spurious interrupts\n", getName());
     /*
      * The Goodix panel will send spurious interrupts after a
      * 'finger up' event, which will always cause a timeout.
@@ -392,22 +377,22 @@ void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOService* whatDevice) {
-    if (powerState == 0) {
-        if (awake) {
-            awake = false;
-            while (read_in_progress) {
-                IOLog("%s::Waiting for read to finish before sleeping...\n", getName());
-                IOSleep(10);
-            }
-            IOLog("%s::Going to sleep\n", getName());
-        }
-    }
-    else {
-        if (!awake) {
-            awake = true;
-            IOLog("%s::Waking up\n", getName());
-        }
-    }
+//    if (powerState == 0) {
+//        if (awake) {
+//            awake = false;
+//            while (read_in_progress) {
+//                IOLog("%s::Waiting for read to finish before sleeping...\n", getName());
+//                IOSleep(10);
+//            }
+//            IOLog("%s::Going to sleep\n", getName());
+//        }
+//    }
+//    else {
+//        if (!awake) {
+//            awake = true;
+//            IOLog("%s::Waking up\n", getName());
+//        }
+//    }
 
     return kIOPMAckImplied;
 }
@@ -460,7 +445,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_write_reg(UInt16 reg, UInt8 value) {
     UInt16 buffer[] {
         OSSwapHostToBigInt16(reg),
-        value
+        OSSwapHostToBigInt16(value)
     };
     IOReturn retVal = kIOReturnSuccess;
     retVal = api->writeI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer));
