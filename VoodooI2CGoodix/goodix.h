@@ -18,9 +18,15 @@
 #define GOODIX_CONTACT_SIZE        8
 #define GOODIX_MAX_CONTACTS        10
 
-#define RESOLUTION_LOC        1
-#define MAX_CONTACTS_LOC    5
-#define TRIGGER_LOC        6
+#define RESOLUTION_LOC          1
+#define MAX_CONTACTS_LOC        5
+#define TRIGGER_LOC             6
+#define SCREEN_TOUCH_LEVEL_LOC  12
+#define LEAVE_LEVEL_LOC         13
+#define LOW_POWER_INTERVAL_LOC  14
+#define REFRESH_LOC             15
+#define X_THRESHOLD_LOC         16
+#define Y_THRESHOLD_LOC         17
 
 #define GOODIX_BUFFER_STATUS_READY    BIT(7)
 #define GOODIX_BUFFER_STATUS_TIMEOUT    20000000

@@ -238,13 +238,7 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_end_cmd() {
-    IOReturn retVal;
-
-    retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 1);
-    if (retVal != kIOReturnSuccess) {
-        IOLog("%s::I2C write end_cmd 1 error: %d\n", getName(), retVal);
-    }
-    retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
+    IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
     if (retVal != kIOReturnSuccess) {
         IOLog("%s::I2C write end_cmd 0 error: %d\n", getName(), retVal);
     }
@@ -257,7 +251,6 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 
     numTouches = goodix_ts_read_input_report(point_data);
     if (numTouches <= 0) {
-        IOLog("%s::Got no touches on an interrupt...\n", getName());
         return kIOReturnSuccess;
     }
 
@@ -445,7 +438,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_reg(UInt16 reg, UInt8* values, 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_write_reg(UInt16 reg, UInt8 value) {
     UInt16 buffer[] {
         OSSwapHostToBigInt16(reg),
-        OSSwapHostToBigInt16(value)
+        value
     };
     IOReturn retVal = kIOReturnSuccess;
     retVal = api->writeI2C(reinterpret_cast<UInt8*>(&buffer), sizeof(buffer));
@@ -518,12 +511,85 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
         ts->max_touch_num = GOODIX_MAX_CONTACTS;
     }
 
+    UInt8 screenTouchLevel = config[SCREEN_TOUCH_LEVEL_LOC] & 0xff;
+    UInt8 screenLeaveLevel = config[LEAVE_LEVEL_LOC];
+
+    UInt8 lowPowerInterval = config[LOW_POWER_INTERVAL_LOC] & 0x0f;
+    UInt8 refreshRate = config[REFRESH_LOC] & 0x0f;
+    UInt8 xThreshold = config[X_THRESHOLD_LOC];
+    UInt8 yThreshold = config[Y_THRESHOLD_LOC];
+
+    UInt8 checksumLoc = ts->chip->config_len - 2;
+    UInt8 existingChecksum = config[checksumLoc];
+
     IOLog("%s::Config read successfully\n", getName());
 
     IOLog("%s::ts->abs_x_max = %d\n", getName(), ts->abs_x_max);
     IOLog("%s::ts->abs_y_max = %d\n", getName(), ts->abs_y_max);
     IOLog("%s::ts->max_touch_num = %d\n", getName(), ts->max_touch_num);
+    IOLog("%s::ts->int_trigger_type = %d\n", getName(), ts->int_trigger_type);
+    IOLog("%s::screenTouchLevel = %d\n", getName(), screenTouchLevel);
+    IOLog("%s::screenLeaveLevel = %d\n", getName(), screenLeaveLevel);
+    IOLog("%s::lowPowerInterval = %d\n", getName(), lowPowerInterval);
+    IOLog("%s::refreshRate = %d\n", getName(), refreshRate);
+    IOLog("%s::xThreshold = %d\n", getName(), xThreshold);
+    IOLog("%s::yThreshold = %d\n", getName(), yThreshold);
+    IOLog("%s::Configuration checksum: %d\n", getName(), existingChecksum);
+
+    // Set trigger type
+    config[TRIGGER_LOC] = (config[TRIGGER_LOC] & ~0x03) | (1 & 0x03);
+    retVal = goodix_write_reg(ts->chip->config_addr + TRIGGER_LOC, config[TRIGGER_LOC]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting config (%d)\n", getName(), retVal);
+    }
+
+    // Set refresh rate to x * 250us = xms
+    config[REFRESH_LOC] = (config[REFRESH_LOC] & ~0x0f) | (2 & 0x0f);
+    retVal = goodix_write_reg(ts->chip->config_addr + REFRESH_LOC, config[REFRESH_LOC]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting refresh rate config (%d)\n", getName(), retVal);
+    }
+
+    // Set x and y threshold, otherwise GT911 will output coordinates continuously
+    config[X_THRESHOLD_LOC] = 0;
+    config[Y_THRESHOLD_LOC] = 0;
+    retVal = goodix_write_reg(ts->chip->config_addr + X_THRESHOLD_LOC, config[X_THRESHOLD_LOC]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting X threshold config (%d)\n", getName(), retVal);
+    }
+    retVal = goodix_write_reg(ts->chip->config_addr + Y_THRESHOLD_LOC, config[Y_THRESHOLD_LOC]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting Y threshold config (%d)\n", getName(), retVal);
+    }
+
+    // Calculate checksum of bytes from 0x8047 to 0x80FE (183 bytes)
+    UInt8 checksum = 0;
+    for (int i = 0; i < checksumLoc; i++) {
+        checksum += config[i];
+    }
+    checksum = (~checksum) + 1;
+
+    // Set config checksum
+    config[checksumLoc] = checksum;
+
+    IOLog("%s::New configuration checksum: %d\n", getName(), checksum);
+    retVal = goodix_write_reg(ts->chip->config_addr + checksumLoc, config[checksumLoc]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting config checksum (%d)\n", getName(), retVal);
+    }
+
+    // Set config fresh
+    int configFreshLoc = ts->chip->config_len - 1;
+    config[configFreshLoc] = 1;
+
+    retVal = goodix_write_reg(ts->chip->config_addr + configFreshLoc, config[configFreshLoc]);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::Error setting config fresh (%d)\n", getName(), retVal);
+    }
+
+    usleep_range(10000, 11000);
 }
+
 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev() {
     IOReturn retVal = kIOReturnSuccess;
