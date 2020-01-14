@@ -133,12 +133,12 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     }
     acpi_device = OSDynamicCast(IOACPIPlatformDevice, provider->getProperty("acpi-device"));
     if (!acpi_device) {
-        IOLog("Could not get ACPI device\n");
+        IOLog("%s::Could not get ACPI device\n", getName());
         return NULL;
     }
     api = OSDynamicCast(VoodooI2CDeviceNub, provider);
     if (!api) {
-        IOLog("Could not get VoodooI2C API instance\n");
+        IOLog("%s::Could not get VoodooI2C API instance\n", getName());
         return NULL;
     }
     return this;
@@ -346,21 +346,14 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
     int input_y = get_unaligned_le16(&coor_data[3]);
     int input_w = get_unaligned_le16(&coor_data[5]);
 
-//    IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
-
     // Inversions have to happen before axis swapping
     if (ts->inverted_x)
         input_x = ts->abs_x_max - input_x;
     if (ts->inverted_y)
         input_y = ts->abs_y_max - input_y;
 
-    if (ts->inverted_x || ts->inverted_y) {
-//        IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
-    }
-
     if (ts->swapped_x_y) {
         swap(input_x, input_y);
-//        IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
     }
 
 //    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
@@ -489,6 +482,8 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
 
 /* Ported from goodix.c */
 void VoodooI2CGoodixTouchDriver::goodix_read_config() {
+    IOLog("%s::Reading config...\n", getName());
+
     UInt8 config[GOODIX_CONFIG_MAX_LENGTH];
     IOReturn retVal = kIOReturnSuccess;
 
@@ -528,8 +523,6 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
     UInt8 refreshRate = config[REFRESH_LOC] & 0x0f;
     UInt8 xThreshold = config[X_THRESHOLD_LOC];
     UInt8 yThreshold = config[Y_THRESHOLD_LOC];
-
-    IOLog("%s::Config read successfully\n", getName());
 
     IOLog("%s::xOutputMax = %d\n", getName(), ts->abs_x_max);
     IOLog("%s::yOutputMax = %d\n", getName(), ts->abs_y_max);
