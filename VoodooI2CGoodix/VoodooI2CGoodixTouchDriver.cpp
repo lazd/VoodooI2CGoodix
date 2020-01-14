@@ -317,14 +317,12 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
                 }
             }
 
-            IOLog("%s::Got %d touches\n", getName(), touch_num);
             return touch_num;
         }
 
         usleep_range(1000, 2000); /* Poll every 1 - 2 ms */
     } while (timestamp_ns < max_timeout);
 
-    IOLog("%s::Got spurious interrupts\n", getName());
     /*
      * The Goodix panel will send spurious interrupts after a
      * 'finger up' event, which will always cause a timeout.
