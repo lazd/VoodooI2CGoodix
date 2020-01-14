@@ -215,11 +215,13 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
     if (read_in_progress || !awake) {
         return;
     }
+    interrupt_source->disable();
     read_in_progress = true;
     thread_t new_thread;
     kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
     if (ret != KERN_SUCCESS) {
         read_in_progress = false;
+        interrupt_source->enable();
         IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
     }
     else {
@@ -234,6 +236,7 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
     }
     command_gate->attemptAction(OSMemberFunctionCast(IOCommandGate::Action, this, &VoodooI2CGoodixTouchDriver::goodix_process_events));
     goodix_end_cmd();
+    interrupt_source->enable();
     read_in_progress = false;
 }
 
