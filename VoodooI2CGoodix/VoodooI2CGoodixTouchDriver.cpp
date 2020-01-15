@@ -216,11 +216,13 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
         return;
     if (!awake)
         return;
+    interrupt_source->disable();
     read_in_progress = true;
     thread_t new_thread;
     kern_return_t ret = kernel_thread_start(OSMemberFunctionCast(thread_continue_t, this, &VoodooI2CGoodixTouchDriver::handle_input_threaded), this, &new_thread);
     if (ret != KERN_SUCCESS) {
         read_in_progress = false;
+        interrupt_source->enable();
         IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
     } else {
         thread_deallocate(new_thread);
@@ -237,7 +239,17 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
         return;
     }
     command_gate->attemptAction(OSMemberFunctionCast(IOCommandGate::Action, this, &VoodooI2CGoodixTouchDriver::goodix_process_events));
+    goodix_end_cmd();
+    interrupt_source->enable();
     read_in_progress = false;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_end_cmd() {
+    IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
+    if (retVal != kIOReturnSuccess) {
+        IOLog("%s::I2C write end_cmd 0 error: %d\n", getName(), retVal);
+    }
+    return retVal;
 }
 
 /* Ported from goodix.c */
@@ -245,7 +257,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
 
     numTouches = goodix_ts_read_input_report(point_data);
-    if (numTouches < 0) {
+    if (numTouches <= 0) {
         return kIOReturnSuccess;
     }
 
@@ -257,12 +269,6 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 
     for (int i = 0; i < numTouches; i++) {
         goodix_ts_report_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i], touches);
-    }
-
-    IOReturn retVal = goodix_write_reg(GOODIX_READ_COOR_ADDR, 0);
-    if (retVal != kIOReturnSuccess) {
-        IOLog("%s::I2C write end_cmd error: %d\n", getName(), retVal);
-        return retVal;
     }
 
     if (numTouches > 0) {

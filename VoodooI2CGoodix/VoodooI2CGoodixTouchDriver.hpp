@@ -116,6 +116,10 @@ private:
 
     void goodix_ts_report_touch(UInt8 *coor_data, Touch *touches);
 
+    /* Send the interrupt end command
+     */
+    IOReturn goodix_end_cmd();
+
     int goodix_ts_read_input_report(UInt8 *data);
 };
 
