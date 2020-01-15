@@ -96,11 +96,15 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch) {
                 IOLog("%s::Still hovering at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
                 #endif
 
-                // Hover in the same place
-                dispatchDigitizerEvent(logicalX, logicalY, HOVER);
-
                 // Check for a right click
-                if (currentInteractionType != RIGHT_CLICK) {
+                if (currentInteractionType == RIGHT_CLICK) {
+                    // Keep the right mousebutton down in the same place
+                    dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
+                }
+                else {
+                    // Hover in the same place
+                    dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+
                     UInt64 elapsed = (nanoseconds - fingerDownStart) / 1000000;
                     if (elapsed > RIGHT_CLICK_DELAY) {
                         // Cancel our outstanding click, we're right clicking now
@@ -135,8 +139,13 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch) {
             IOLog("%s::Dragging at %d, %d\n", getName(), logicalX, logicalY);
             #endif
 
-            // Report that we moved
-            dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
+            // Report that we moved with the mousedown
+            if (currentInteractionType == RIGHT_CLICK) {
+                dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
+            }
+            else {
+                dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
+            }
 
             // Store the coordinates for the next tick
             nextLogicalX = logicalX;
