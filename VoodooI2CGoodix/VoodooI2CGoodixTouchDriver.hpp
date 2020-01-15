@@ -99,6 +99,9 @@ private:
      */
     void goodix_read_config();
 
+    /* Set default config values in the case of a config error */
+    void set_default_config();
+
     /* Handles any interrupts that the Goodix device generates
      * by spawning a thread that is out of the interrupt context
      */
@@ -114,13 +117,24 @@ private:
      */
     IOReturn goodix_process_events();
 
-    void goodix_ts_report_touch(UInt8 *coor_data, Touch *touches);
+    /* Store the coordinate data to the array of touches that will be sent to the event driver */
+    void goodix_ts_store_touch(UInt8 *coor_data);
+
+    /* Poll and read the input report once it's ready
+     */
+    int goodix_ts_read_input_report(UInt8 *data);
 
     /* Send the interrupt end command
      */
     IOReturn goodix_end_cmd();
 
-    int goodix_ts_read_input_report(UInt8 *data);
+    /* Ensure the checksum of the config matches its stored checksum
+     */
+    IOReturn goodix_check_config(UInt8 config[]);
+
+    /* Calculate the checksum of the passed configuration
+     */
+    UInt8 goodix_calculate_config_checksum(UInt8 config[]);
 };
 
 #endif /* VoodooI2CGoodixTouchDriver_hpp */

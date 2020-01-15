@@ -16,6 +16,8 @@ OSDefineMetaClassAndStructors(VoodooI2CGoodixTouchDriver, IOService);
 struct goodix_chip_data {
     UInt16 config_addr;
     int config_len;
+    UInt16 checksum_addr;
+    UInt16 config_fresh_addr;
 };
 
 struct goodix_ts_data {
@@ -26,29 +28,36 @@ struct goodix_ts_data {
     bool inverted_x;
     bool inverted_y;
     unsigned int max_touch_num;
-    unsigned int int_trigger_type;
     UInt16 id;
     UInt16 version;
 };
 
 static const struct goodix_chip_data gt1x_chip_data = {
     .config_addr        = GOODIX_GT1X_REG_CONFIG_DATA,
-    .config_len        = GOODIX_CONFIG_MAX_LENGTH
+    .config_len         = GOODIX_CONFIG_MAX_LENGTH,
+    .checksum_addr      = GOODIX_CONFIG_MAX_LENGTH - 2,
+    .config_fresh_addr  = GOODIX_CONFIG_MAX_LENGTH - 1
 };
 
 static const struct goodix_chip_data gt911_chip_data = {
     .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
-    .config_len        = GOODIX_CONFIG_911_LENGTH
+    .config_len         = GOODIX_CONFIG_911_LENGTH,
+    .checksum_addr      = GOODIX_CONFIG_911_LENGTH - 2,
+    .config_fresh_addr  = GOODIX_CONFIG_911_LENGTH - 1
 };
 
 static const struct goodix_chip_data gt967_chip_data = {
     .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
-    .config_len        = GOODIX_CONFIG_967_LENGTH
+    .config_len         = GOODIX_CONFIG_967_LENGTH,
+    .checksum_addr      = GOODIX_CONFIG_967_LENGTH - 2,
+    .config_fresh_addr  = GOODIX_CONFIG_967_LENGTH - 1
 };
 
 static const struct goodix_chip_data gt9x_chip_data = {
     .config_addr        = GOODIX_GT9X_REG_CONFIG_DATA,
-    .config_len        = GOODIX_CONFIG_MAX_LENGTH
+    .config_len         = GOODIX_CONFIG_MAX_LENGTH,
+    .checksum_addr      = GOODIX_CONFIG_MAX_LENGTH - 2,
+    .config_fresh_addr  = GOODIX_CONFIG_MAX_LENGTH - 1
 };
 
 static const struct goodix_chip_data *goodix_get_chip_data(UInt16 id)
@@ -124,12 +133,12 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
     }
     acpi_device = OSDynamicCast(IOACPIPlatformDevice, provider->getProperty("acpi-device"));
     if (!acpi_device) {
-        IOLog("Could not get ACPI device\n");
+        IOLog("%s::Could not get ACPI device\n", getName());
         return NULL;
     }
     api = OSDynamicCast(VoodooI2CDeviceNub, provider);
     if (!api) {
-        IOLog("Could not get VoodooI2C API instance\n");
+        IOLog("%s::Could not get VoodooI2C API instance\n", getName());
         return NULL;
     }
     return this;
@@ -165,7 +174,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         goto start_exit;
     }
 
-     if (!init_device()) {
+    if (!init_device()) {
         IOLog("%s::Failed to init device\n", getName());
         goto start_exit;
     }
@@ -212,10 +221,9 @@ start_exit:
 }
 
 void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterruptEventSource* src, int intCount) {
-    if (read_in_progress)
+    if (read_in_progress || !awake) {
         return;
-    if (!awake)
-        return;
+    }
     interrupt_source->disable();
     read_in_progress = true;
     thread_t new_thread;
@@ -224,17 +232,14 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
         read_in_progress = false;
         interrupt_source->enable();
         IOLog("%s::Thread error while attemping to get input report: %d\n", getName(), ret);
-    } else {
+    }
+    else {
         thread_deallocate(new_thread);
     }
 }
 
 void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
-    if (!ready_for_input) {
-        read_in_progress = false;
-        return;
-    }
-    if (!command_gate) {
+    if (!ready_for_input || !command_gate) {
         read_in_progress = false;
         return;
     }
@@ -268,7 +273,7 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
 //   bool home_pressed = point_data[0] & BIT(4);
 
     for (int i = 0; i < numTouches; i++) {
-        goodix_ts_report_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i], touches);
+        goodix_ts_store_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i]);
     }
 
     if (numTouches > 0) {
@@ -335,13 +340,11 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
 }
 
 /* Ported from goodix.c */
-void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch *touches) {
+void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
     int id = coor_data[0] & 0x0F;
     int input_x = get_unaligned_le16(&coor_data[1]);
     int input_y = get_unaligned_le16(&coor_data[3]);
     int input_w = get_unaligned_le16(&coor_data[5]);
-
-//    IOLog("%s::raw: %d,%d\n", getName(), input_x, input_y);
 
     // Inversions have to happen before axis swapping
     if (ts->inverted_x)
@@ -349,13 +352,8 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_report_touch(UInt8 *coor_data, Touch 
     if (ts->inverted_y)
         input_y = ts->abs_y_max - input_y;
 
-    if (ts->inverted_x || ts->inverted_y) {
-//        IOLog("%s::inv: %d,%d\n", getName(), input_x, input_y);
-    }
-
     if (ts->swapped_x_y) {
         swap(input_x, input_y);
-//        IOLog("%s::swp: %d,%d\n", getName(), input_x, input_y);
     }
 
 //    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
@@ -484,19 +482,24 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_read_version() {
 
 /* Ported from goodix.c */
 void VoodooI2CGoodixTouchDriver::goodix_read_config() {
+    IOLog("%s::Reading config...\n", getName());
+
     UInt8 config[GOODIX_CONFIG_MAX_LENGTH];
     IOReturn retVal = kIOReturnSuccess;
 
     retVal = goodix_read_reg(ts->chip->config_addr, config, ts->chip->config_len);
-
     if (retVal != kIOReturnSuccess) {
         IOLog("%s::Error reading config (%d), using defaults\n", getName(), retVal);
-        ts->abs_x_max = GOODIX_MAX_WIDTH;
-        ts->abs_y_max = GOODIX_MAX_HEIGHT;
-        if (ts->swapped_x_y)
-            swap(ts->abs_x_max, ts->abs_y_max);
-        ts->int_trigger_type = GOODIX_INT_TRIGGER;
-        ts->max_touch_num = GOODIX_MAX_CONTACTS;
+    }
+    else {
+        retVal = goodix_check_config(config);
+        if (retVal != kIOReturnSuccess) {
+            IOLog("%s::Config checksum mismatch, using defaults\n", getName());
+        }
+    }
+
+    if (retVal != kIOReturnSuccess) {
+        set_default_config();
         return;
     }
 
@@ -504,23 +507,60 @@ void VoodooI2CGoodixTouchDriver::goodix_read_config() {
     ts->abs_y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
     if (ts->swapped_x_y)
         swap(ts->abs_x_max, ts->abs_y_max);
-
-    ts->int_trigger_type = config[TRIGGER_LOC] & 0x03;
     ts->max_touch_num = config[MAX_CONTACTS_LOC] & 0x0f;
+
     if (!ts->abs_x_max || !ts->abs_y_max || !ts->max_touch_num) {
-        IOLog("%s::Invalid config (%d), using defaults\n", getName(), retVal);
-        ts->abs_x_max = GOODIX_MAX_WIDTH;
-        ts->abs_y_max = GOODIX_MAX_HEIGHT;
-        if (ts->swapped_x_y)
-            swap(ts->abs_x_max, ts->abs_y_max);
-        ts->max_touch_num = GOODIX_MAX_CONTACTS;
+        IOLog("%s::Config is missing information, using defaults\n", getName());
+        set_default_config();
+        return;
     }
 
-    IOLog("%s::Config read successfully\n", getName());
+    // These configuration values are not required for operation
+    // But they may be useful for debugging, so dump them
+    UInt8 screenTouchLevel = config[SCREEN_TOUCH_LEVEL_LOC] & 0xff;
+    UInt8 screenLeaveLevel = config[LEAVE_LEVEL_LOC];
+    UInt8 lowPowerInterval = config[LOW_POWER_INTERVAL_LOC] & 0x0f;
+    UInt8 refreshRate = config[REFRESH_LOC] & 0x0f;
+    UInt8 xThreshold = config[X_THRESHOLD_LOC];
+    UInt8 yThreshold = config[Y_THRESHOLD_LOC];
 
-    IOLog("%s::ts->abs_x_max = %d\n", getName(), ts->abs_x_max);
-    IOLog("%s::ts->abs_y_max = %d\n", getName(), ts->abs_y_max);
-    IOLog("%s::ts->max_touch_num = %d\n", getName(), ts->max_touch_num);
+    IOLog("%s::xOutputMax = %d\n", getName(), ts->abs_x_max);
+    IOLog("%s::yOutputMax = %d\n", getName(), ts->abs_y_max);
+    IOLog("%s::maxTouches = %d\n", getName(), ts->max_touch_num);
+    IOLog("%s::screenTouchLevel = %d\n", getName(), screenTouchLevel);
+    IOLog("%s::screenLeaveLevel = %d\n", getName(), screenLeaveLevel);
+    IOLog("%s::lowPowerInterval = %d\n", getName(), lowPowerInterval);
+    IOLog("%s::refreshRate = %d\n", getName(), refreshRate);
+    IOLog("%s::xThreshold = %d\n", getName(), xThreshold);
+    IOLog("%s::yThreshold = %d\n", getName(), yThreshold);
+}
+
+void VoodooI2CGoodixTouchDriver::set_default_config() {
+    ts->abs_x_max = GOODIX_MAX_WIDTH;
+    ts->abs_y_max = GOODIX_MAX_HEIGHT;
+    if (ts->swapped_x_y)
+        swap(ts->abs_x_max, ts->abs_y_max);
+    ts->max_touch_num = GOODIX_MAX_CONTACTS;
+}
+
+UInt8 VoodooI2CGoodixTouchDriver::goodix_calculate_config_checksum(UInt8 config[]) {
+    UInt8 checksum = 0;
+    for (int i = 0; i < ts->chip->checksum_addr; i++) {
+        checksum += config[i];
+    }
+    checksum = (~checksum) + 1;
+    return checksum;
+}
+
+IOReturn VoodooI2CGoodixTouchDriver::goodix_check_config(UInt8 config[]) {
+    UInt8 storedChecksum = config[ts->chip->checksum_addr];
+    UInt8 actualChecksum = goodix_calculate_config_checksum(config);
+
+    if (storedChecksum != actualChecksum) {
+        IOLog("%s::Config checksum (%d) does not match stored checksum (%d)\n", getName(), actualChecksum, storedChecksum);
+        return kIOReturnIOError;
+    }
+    return kIOReturnSuccess;
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::goodix_configure_dev() {
