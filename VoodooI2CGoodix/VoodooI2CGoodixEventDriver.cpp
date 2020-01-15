@@ -35,8 +35,8 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, clickType, x, y);
 
     // Store the coordinates so we can lift the finger later
-    last_x = x;
-    last_y = y;
+    lastEventFixedX = x;
+    lastEventFixedY = y;
 }
 
 void VoodooI2CGoodixEventDriver::scheduleLift() {
@@ -50,13 +50,13 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
 
-    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, last_x, last_y);
+    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, lastEventFixedX, lastEventFixedY);
 
     // Mark that the finger has been lifted
     fingerDown = false;
     currentInteractionType = HOVER;
 
-    scroll_started = false;
+    scrollStarted = false;
 
     // Reset all transducers
     for (int i = 0; i < transducers->getCount(); i++) {
@@ -169,13 +169,13 @@ void VoodooI2CGoodixEventDriver::checkForClick() {
 
 void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touches[], int numTouches) {
     // Set rotation for gestures
-    multitouch_interface->setProperty(kIOFBTransformKey, current_rotation, 8);
+    multitouch_interface->setProperty(kIOFBTransformKey, currentRotation, 8);
 
-    if (numTouches == 2 && !scroll_started) {
+    if (numTouches == 2 && !scrollStarted) {
         // Move the cursor to the location between the two fingers
         dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
 
-        scroll_started = true;
+        scrollStarted = true;
     }
 
     AbsoluteTime timestamp;
@@ -205,13 +205,13 @@ void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touche
 }
 
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
-    if (!active_framebuffer) {
-        active_framebuffer = getFramebuffer();
+    if (!activeFramebuffer) {
+        activeFramebuffer = getFramebuffer();
     }
 
-    if (active_framebuffer) {
-        OSNumber* number = OSDynamicCast(OSNumber, active_framebuffer->getProperty(kIOFBTransformKey));
-        current_rotation = number->unsigned8BitValue() / 0x10;
+    if (activeFramebuffer) {
+        OSNumber* number = OSDynamicCast(OSNumber, activeFramebuffer->getProperty(kIOFBTransformKey));
+        currentRotation = number->unsigned8BitValue() / 0x10;
     }
 
     if (numTouches == 1) {
@@ -240,7 +240,7 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     multitouch_interface->registerService();
 
-    active_framebuffer = getFramebuffer();
+    activeFramebuffer = getFramebuffer();
 
     liftTimerSource = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::fingerLift));
     if (!liftTimerSource || work_loop->addEventSource(liftTimerSource) != kIOReturnSuccess) {
@@ -284,7 +284,7 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
 
     OSSafeReleaseNULL(work_loop);
 
-//    OSSafeReleaseNULL(active_framebuffer); // Todo: do we need to do this?
+//    OSSafeReleaseNULL(activeFramebuffer); // Todo: do we need to do this?
 
     super::handleStop(provider);
 }
@@ -412,16 +412,16 @@ IOFramebuffer* VoodooI2CGoodixEventDriver::getFramebuffer() {
 }
 
 void VoodooI2CGoodixEventDriver::checkRotation(IOFixed* x, IOFixed* y) {
-    if (active_framebuffer) {
-        if (current_rotation & kIOFBSwapAxes) {
+    if (activeFramebuffer) {
+        if (currentRotation & kIOFBSwapAxes) {
             IOFixed old_x = *x;
             *x = *y;
             *y = old_x;
         }
-        if (current_rotation & kIOFBInvertX) {
+        if (currentRotation & kIOFBInvertX) {
             *x = 65535 - *x;
         }
-        if (current_rotation & kIOFBInvertY) {
+        if (currentRotation & kIOFBInvertY) {
             *y = 65535 - *y;
         }
     }

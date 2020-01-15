@@ -133,6 +133,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
     void setDigitizerProperties();
 
     /* Dispatch a digitizer event at the given screen coordinate
+     *
      * @logicalX The logical X position of the event
      * @logicalY The logical Y position of the event
      * @click Whether this is a click event
@@ -147,6 +148,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     /* Schedule a finger lift event
      */
+
     void scheduleLift();
 
     /* Get the active framebuffer
@@ -161,22 +163,38 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     void checkRotation(IOFixed* x, IOFixed* y);
 
+    /* Handle multitouch interactions
+     *
+     * @touches An array of Touch objects
+     * @numTouches The number of touches
+     */
     void handleMultitouchInteraction(struct Touch touches[], int numTouches);
+
+    /* Handle singletouch interactions
+     *
+     * @touch A single Touch object
+     */
     void handleSingletouchInteraction(Touch touch);
 
+    /* Schedule a check for a click
+     */
+
     void scheduleClickCheck();
+
+    /* Dispatch a click if we're supposed to
+     */
     void checkForClick();
 
 private:
     IOWorkLoop *work_loop;
     IOTimerEventSource *liftTimerSource;
     IOTimerEventSource *clickTimerSource;
-    IOFramebuffer* active_framebuffer = NULL;
+    IOFramebuffer* activeFramebuffer = NULL;
 
-    UInt8 current_rotation;
+    UInt8 currentRotation;
 
-    IOFixed last_x = 0;
-    IOFixed last_y = 0;
+    IOFixed lastEventFixedX = 0;
+    IOFixed lastEventFixedY = 0;
 
     UInt16 nextLogicalX = 0;
     UInt16 nextLogicalY = 0;
@@ -184,7 +202,7 @@ private:
     bool fingerDown = false;
     UInt64 fingerDownStart = 0;
 
-    bool scroll_started = false;
+    bool scrollStarted = false;
 };
 
 
