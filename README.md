@@ -31,7 +31,7 @@ You can also right click by tapping and holding.
 
 If you're having problems with VoodooI2CGoodix, you've found a bug, or you have a great idea for a new feature, [file an issue](https://github.com/lazd/VoodooI2CGoodix/issues/new/choose)!
 
-You can also chat with us [on gitter](https://gitter.im/lazd/VoodooI2CGoodix), but be prepared to provide all the same information required to file an issue.
+You can also chat with us [on gitter](https://gitter.im/lazd/VoodooI2CGoodix), but provide [all the necessary information](Troubleshooting.md) with your request or you will not be helped.
 
 ## Sponsor
 

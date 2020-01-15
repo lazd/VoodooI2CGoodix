@@ -28,6 +28,7 @@ assignees: ''
 
 ## Environment
  - **Computer**: <!-- Chuwi Minibook 8 -->
+ * **Goodix Touchscreen model**: <!-- GT911 -->
  - **VoodooI2C version:** <!-- 2.2 -->
  - **VoodooI2CGoodix version:** <!-- 0.1.0 -->
  - **macOS Version:** <!-- 10.5.2 19C57 -->
