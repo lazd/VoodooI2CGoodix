@@ -33,12 +33,13 @@
 
 #include "../../../Dependencies/helpers.hpp"
 
-#define FINGER_LIFT_EVENT_DELAY 50
+#define FINGER_LIFT_DELAY   30
+#define CLICK_DELAY         150
+#define RIGHT_CLICK_DELAY   600
 #define HOVER       0x0
 #define LEFT_CLICK  0x1
 #define RIGHT_CLICK 0x2
-#define HOVER_TICKS 1
-#define RIGHT_CLICK_TICKS   25
+#define DRAG        0x5
 
 struct Touch {
     int x;
@@ -160,9 +161,16 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     void checkRotation(IOFixed* x, IOFixed* y);
 
+    void handleMultitouchInteraction(struct Touch touches[], int numTouches);
+    void handleSingletouchInteraction(Touch touch);
+
+    void scheduleClickCheck();
+    void checkForClick();
+
 private:
     IOWorkLoop *work_loop;
-    IOTimerEventSource *timer_source;
+    IOTimerEventSource *liftTimerSource;
+    IOTimerEventSource *clickTimerSource;
     IOFramebuffer* active_framebuffer = NULL;
 
     UInt8 current_rotation;
@@ -170,12 +178,13 @@ private:
     IOFixed last_x = 0;
     IOFixed last_y = 0;
 
-    int click_tick = 0;
-    bool right_click = false;
+    UInt16 nextLogicalX = 0;
+    UInt16 nextLogicalY = 0;
+    UInt8 currentInteractionType = LEFT_CLICK;
+    bool fingerDown = false;
+    UInt64 fingerDownStart = 0;
+
     bool scroll_started = false;
-    UInt16 compare_input_x = 0;
-    UInt16 compare_input_y = 0;
-    int compare_input_counter = 0;
 };
 
 

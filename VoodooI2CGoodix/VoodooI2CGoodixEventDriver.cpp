@@ -13,6 +13,14 @@
 #define super IOHIDEventService
 OSDefineMetaClassAndStructors(VoodooI2CGoodixEventDriver, IOHIDEventService);
 
+static UInt64 getNanoseconds() {
+    AbsoluteTime timestamp;
+    UInt64 nanoseconds;
+    clock_get_uptime(&timestamp);
+    absolutetime_to_nanoseconds(timestamp, &nanoseconds);
+    return nanoseconds;
+}
+
 void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, UInt32 clickType) {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
@@ -32,23 +40,23 @@ void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logica
 }
 
 void VoodooI2CGoodixEventDriver::scheduleLift() {
-    this->timer_source->cancelTimeout();
-    this->timer_source->setTimeoutMS(FINGER_LIFT_EVENT_DELAY);
+    this->liftTimerSource->cancelTimeout();
+    this->liftTimerSource->setTimeoutMS(FINGER_LIFT_DELAY);
 }
 
 void VoodooI2CGoodixEventDriver::fingerLift() {
+    IOLog("%s::Finger lifted\n", getName());
+
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
 
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, last_x, last_y);
 
-    click_tick = 0;
-    scroll_started = false;
+    // Mark that the finger has been lifted
+    fingerDown = false;
+    currentInteractionType = HOVER;
 
-    // Reset right click status so we're not stuck checking if we're still right clicking
-    if (right_click) {
-        right_click = false;
-    }
+    scroll_started = false;
 
     // Reset all transducers
     for (int i = 0; i < transducers->getCount(); i++) {
@@ -65,6 +73,137 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     }
 }
 
+void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch) {
+    int logicalX = touch.x;
+    int logicalY = touch.y;
+
+    UInt64 nanoseconds = getNanoseconds();
+
+    if (fingerDown) {
+        if (logicalX == nextLogicalX && logicalY == nextLogicalY) {
+            if (currentInteractionType == DRAG) {
+                IOLog("%s::Still dragging at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+                // Keep on dragging
+                dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
+            }
+            else {
+                IOLog("%s::Still hovering at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+                // Hover in the same place
+                dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+
+                // Check for a right click
+                if (currentInteractionType != RIGHT_CLICK) {
+                    UInt64 elapsed = (nanoseconds - fingerDownStart) / 1000000;
+                    if (elapsed > RIGHT_CLICK_DELAY) {
+                        // Cancel our outstanding click, we're right clicking now
+                        this->clickTimerSource->cancelTimeout();
+
+                        IOLog("%s::Right click at %d, %d\n", getName(), logicalX, logicalY);
+                        dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
+                        currentInteractionType = RIGHT_CLICK;
+                    }
+                }
+            }
+        }
+        else {
+            if (currentInteractionType == LEFT_CLICK) {
+                // Cancel our outstanding click, we're dragging now
+                this->clickTimerSource->cancelTimeout();
+
+                IOLog("%s::Begin dragging at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+
+                // Issue a mousedown where we were before
+                dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+
+                currentInteractionType = DRAG;
+            }
+
+            IOLog("%s::Dragging at %d, %d\n", getName(), logicalX, logicalY);
+
+            // Report that we moved
+            dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
+
+            // Store the coordinates for the next tick
+            nextLogicalX = logicalX;
+            nextLogicalY = logicalY;
+        }
+    }
+    else {
+        // The finger just hit the screen, so store the start time
+        fingerDownStart = nanoseconds;
+        fingerDown = true;
+        nextLogicalX = logicalX;
+        nextLogicalY = logicalY;
+        currentInteractionType = LEFT_CLICK;
+
+        // Every interaction could be a click, so check for one in a bit
+        scheduleClickCheck();
+
+        IOLog("%s::Began hover at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+        dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+    }
+
+    // No matter what, we need to ensure we issue a mouseup after some time
+    scheduleLift();
+}
+
+void VoodooI2CGoodixEventDriver::scheduleClickCheck() {
+    this->clickTimerSource->cancelTimeout();
+    this->clickTimerSource->setTimeoutMS(CLICK_DELAY);
+}
+
+void VoodooI2CGoodixEventDriver::checkForClick() {
+    if (!fingerDown) {
+        IOLog("%s::Executing a click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+
+        // The finger was lifted within click time, which means we have a click!
+        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+
+        // Immediately lift, we're doing this quick status since we already waited
+        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+    }
+    else {
+        IOLog("%s::Looks like we're not clicking\n", getName());
+    }
+}
+
+void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touches[], int numTouches) {
+    // Set rotation for gestures
+    multitouch_interface->setProperty(kIOFBTransformKey, current_rotation, 8);
+
+    if (numTouches == 2 && !scroll_started) {
+        // Move the cursor to the location between the two fingers
+        dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
+
+        scroll_started = true;
+    }
+
+    AbsoluteTime timestamp;
+    clock_get_uptime(&timestamp);
+
+    // Send a multitouch event for scrolls, scales, etc
+    for (int i = 0; i < numTouches; i++) {
+        Touch touch = touches[i];
+
+        VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
+        transducer->coordinates.x.update(touch.x, timestamp);
+        transducer->coordinates.y.update(touch.y, timestamp);
+
+        transducer->is_valid = true; // Todo: is this required?
+        transducer->tip_switch.update(1, timestamp);
+    }
+
+    VoodooI2CMultitouchEvent event;
+    event.contact_count = numTouches;
+    event.transducers = transducers;
+    if (multitouch_interface) {
+        multitouch_interface->handleInterruptReport(event, timestamp);
+    }
+
+    // Make sure we schedule a lift for when the gesture ends to reset state
+    scheduleLift();
+}
+
 void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
     if (!active_framebuffer) {
         active_framebuffer = getFramebuffer();
@@ -76,87 +215,10 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     }
 
     if (numTouches == 1) {
-        Touch touch = touches[0];
-
-        // Check for right clicks
-        UInt16 temp_x = touch.x;
-        UInt16 temp_y = touch.y;
-        if (!right_click) {
-            if (temp_x == compare_input_x && temp_y == compare_input_y) {
-                compare_input_counter = compare_input_counter + 1;
-                compare_input_x = temp_x;
-                compare_input_y = temp_y;
-
-                if (compare_input_counter >= RIGHT_CLICK_TICKS) {
-                    compare_input_x = 0;
-                    compare_input_y = 0;
-                    compare_input_counter = 0;
-                    right_click = true;
-                }
-            }
-            else {
-                compare_input_x = temp_x;
-                compare_input_y = temp_y;
-                compare_input_counter = 0;
-            }
-        }
-
-        // Determine what click type to send
-        UInt32 clickType = LEFT_CLICK;
-
-        // Todo: do something with touch.width to determine if it should be a click?
-        if (click_tick <= HOVER_TICKS) {
-            clickType = HOVER;
-            click_tick++;
-        }
-
-        if (right_click) {
-            clickType = RIGHT_CLICK;
-        }
-
-        dispatchDigitizerEvent(touch.x, touch.y, clickType);
-
-        // Lift the finger a bit later
-        scheduleLift();
+        handleSingletouchInteraction(touches[0]);
     }
     else {
-        // Set rotation for gestures
-        multitouch_interface->setProperty(kIOFBTransformKey, current_rotation, 8);
-
-        // Our finger event is multitouch, so we're not clicking
-        click_tick = 0;
-
-        if (numTouches == 2 && !scroll_started) {
-            // Move the cursor to the location between the two fingers
-            dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
-
-            scroll_started = true;
-        }
-
-        AbsoluteTime timestamp;
-        clock_get_uptime(&timestamp);
-
-        // Send a multitouch event for scrolls, scales, etc
-        for (int i = 0; i < numTouches; i++) {
-            Touch touch = touches[i];
-
-            VoodooI2CDigitiserTransducer* transducer = OSDynamicCast(VoodooI2CDigitiserTransducer, transducers->getObject(i));
-            transducer->coordinates.x.update(touch.x, timestamp);
-            transducer->coordinates.y.update(touch.y, timestamp);
-
-            transducer->is_valid = true; // Todo: is this required?
-            transducer->tip_switch.update(1, timestamp);
-        }
-
-        VoodooI2CMultitouchEvent event;
-        event.contact_count = numTouches;
-        event.transducers = transducers;
-        if (multitouch_interface) {
-            multitouch_interface->handleInterruptReport(event, timestamp);
-        }
-
-        // Make sure we schedule a lift for when the gesture ends to reset state
-        scheduleLift();
+        handleMultitouchInteraction(touches, numTouches);
     }
 }
 
@@ -178,12 +240,17 @@ bool VoodooI2CGoodixEventDriver::handleStart(IOService* provider) {
 
     multitouch_interface->registerService();
 
-    timer_source = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::fingerLift));
-
     active_framebuffer = getFramebuffer();
 
-    if (!timer_source || work_loop->addEventSource(timer_source) != kIOReturnSuccess) {
-        IOLog("%s::Could not add timer source to work loop\n", getName());
+    liftTimerSource = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::fingerLift));
+    if (!liftTimerSource || work_loop->addEventSource(liftTimerSource) != kIOReturnSuccess) {
+        IOLog("%s::Could not add lift timer source to work loop\n", getName());
+        return false;
+    }
+
+    clickTimerSource = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &VoodooI2CGoodixEventDriver::checkForClick));
+    if (!clickTimerSource || work_loop->addEventSource(clickTimerSource) != kIOReturnSuccess) {
+        IOLog("%s::Could not add click timer source to work loop\n", getName());
         return false;
     }
 
@@ -203,9 +270,16 @@ void VoodooI2CGoodixEventDriver::handleStop(IOService* provider) {
         OSSafeReleaseNULL(transducers);
     }
 
-    if (timer_source) {
-        work_loop->removeEventSource(timer_source);
-        OSSafeReleaseNULL(timer_source);
+    if (liftTimerSource) {
+        liftTimerSource->cancelTimeout();
+        work_loop->removeEventSource(liftTimerSource);
+        OSSafeReleaseNULL(liftTimerSource);
+    }
+
+    if (clickTimerSource) {
+        clickTimerSource->cancelTimeout();
+        work_loop->removeEventSource(clickTimerSource);
+        OSSafeReleaseNULL(clickTimerSource);
     }
 
     OSSafeReleaseNULL(work_loop);
