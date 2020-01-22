@@ -18,6 +18,8 @@
 #include "./VoodooI2CGoodixEventDriver.hpp"
 #include "goodix.h"
 
+//#define GOODIX_TOUCH_DRIVER_DEBUG
+
 class VoodooI2CGoodixTouchDriver : public IOService {
     OSDeclareDefaultStructors(VoodooI2CGoodixTouchDriver);
 
@@ -66,6 +68,8 @@ private:
 
     struct Touch touches[GOODIX_MAX_CONTACTS];
     int numTouches;
+    bool stylusButton1 = false;
+    bool stylusButton2 = false;
 
     /* Sends the appropriate packets to
      * initialise the device into multitouch mode

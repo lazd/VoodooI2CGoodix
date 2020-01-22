@@ -260,26 +260,33 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_end_cmd() {
 
 /* Ported from goodix.c */
 IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
-    UInt8 point_data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
+    // Allocate enough space for the status byte, all touches, and the extra button byte
+    UInt8 data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS + 1];
 
-    numTouches = goodix_ts_read_input_report(point_data);
+    numTouches = goodix_ts_read_input_report(data);
     if (numTouches <= 0) {
         return kIOReturnSuccess;
     }
 
-    /*
-     * Bit 4 of the first byte reports the status of the capacitive
-     * Windows/Home button.
-     */
-//   bool home_pressed = point_data[0] & BIT(4);
+    UInt8 keys = data[1 + numTouches * GOODIX_CONTACT_SIZE];
+    if (GOODIX_KEYDOWN_EVENT(keys)) {
+        stylusButton1 = GOODIX_IS_STYLUS_BTN_DOWN(keys, GOODIX_STYLUS_BTN1);
+        stylusButton2 = GOODIX_IS_STYLUS_BTN_DOWN(keys, GOODIX_STYLUS_BTN2);
+    }
+    else {
+        stylusButton1 = false;
+        stylusButton2 = false;
+    }
 
+    UInt8 *point_data;
     for (int i = 0; i < numTouches; i++) {
-        goodix_ts_store_touch(&point_data[1 + GOODIX_CONTACT_SIZE * i]);
+        point_data = &data[1 + i * GOODIX_CONTACT_SIZE];
+        goodix_ts_store_touch(point_data);
     }
 
     if (numTouches > 0) {
         // send the event into the event driver
-        event_driver->reportTouches(touches, numTouches);
+        event_driver->reportTouches(touches, numTouches, stylusButton1, stylusButton2);
     }
 
     return kIOReturnSuccess;
@@ -306,7 +313,8 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
         clock_get_uptime(&timestamp);
         absolutetime_to_nanoseconds(timestamp, &timestamp_ns);
 
-        retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, data, GOODIX_CONTACT_SIZE + 1);
+        // On the intial read, get the status byte, the first touch, and the pen buttons
+        retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR, data, 1 + GOODIX_CONTACT_SIZE + 1);
         if (retVal != kIOReturnSuccess) {
             IOLog("%s::I2C transfer error starting coordinate read: %d\n", getName(), retVal);
             return -1;
@@ -320,7 +328,8 @@ int VoodooI2CGoodixTouchDriver::goodix_ts_read_input_report(UInt8 *data) {
 
             if (touch_num > 1) {
                 data += 1 + GOODIX_CONTACT_SIZE;
-                retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR + 1 + GOODIX_CONTACT_SIZE, data, GOODIX_CONTACT_SIZE * (touch_num - 1));
+                // Read all touches, and 1 additional byte for the pen buttons
+                retVal = goodix_read_reg(GOODIX_READ_COOR_ADDR + 1 + GOODIX_CONTACT_SIZE, data, GOODIX_CONTACT_SIZE * (touch_num - 1) + 1);
                 if (retVal != kIOReturnSuccess) {
                     IOLog("%s::I2C transfer error during coordinate read: %d\n", getName(), retVal);
                     return -1;
@@ -346,6 +355,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
     int input_x = get_unaligned_le16(&coor_data[1]);
     int input_y = get_unaligned_le16(&coor_data[3]);
     int input_w = get_unaligned_le16(&coor_data[5]);
+    bool type = GOODIX_TOOL_TYPE(coor_data[0]) == GOODIX_TOOL_PEN;
 
     // Inversions have to happen before axis swapping
     if (ts->inverted_x)
@@ -357,12 +367,15 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
         swap(input_x, input_y);
     }
 
-//    IOLog("%s::Touch %d with width %d at %d,%d\n", getName(), id, input_w, input_x, input_y);
+    #ifndef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::%s %d with width %d at %d,%d\n", getName(), type ? "Stylus" : "Touch", id, input_w, input_x, input_y);
+    #endif
 
     // Store touch information
     touches[id].x = input_x;
     touches[id].y = input_y;
     touches[id].width = input_w;
+    touches[id].type = type;
 }
 
 void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
@@ -374,7 +387,7 @@ void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
 }
 
 IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOService* whatDevice) {
-    #ifndef GOODIX_EVENT_DRIVER_DEBUG
+    #ifndef GOODIX_TOUCH_DRIVER_DEBUG
     if (powerState == 0) {
         if (awake) {
             awake = false;

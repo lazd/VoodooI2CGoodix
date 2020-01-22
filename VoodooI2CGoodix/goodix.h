@@ -31,6 +31,21 @@
 #define GOODIX_BUFFER_STATUS_READY      BIT(7)
 #define GOODIX_BUFFER_STATUS_TIMEOUT    20000000
 
+#define GOODIX_STYLUS_BTN1  0
+#define GOODIX_STYLUS_BTN2  1
+
+#define GOODIX_TOOL_FINGER  0
+#define GOODIX_TOOL_PEN     1
+
+#define GOODIX_KEYDOWN_EVENT(byte) \
+    (byte & 0b01110000)
+
+#define GOODIX_IS_STYLUS_BTN_DOWN(byte, btn) \
+    ((byte & 0x40) || (byte & (0x10 << btn)))
+
+#define GOODIX_TOOL_TYPE(id_byte) \
+    (id_byte & 0x80 ? GOODIX_TOOL_PEN : GOODIX_TOOL_FINGER)
+
 #define msleep(x)               IOSleep(x)
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define usleep_range(min, max)    msleep(DIV_ROUND_UP(min, 1000))

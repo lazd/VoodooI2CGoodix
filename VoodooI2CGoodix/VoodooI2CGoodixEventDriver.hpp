@@ -41,10 +41,13 @@
 #define RIGHT_CLICK 0x2
 #define DRAG        0x5
 
+//#define GOODIX_EVENT_DRIVER_DEBUG
+
 struct Touch {
     int x;
     int y;
     int width;
+    bool type; // 0 = finger, 1 = pen
 };
 
 /* Implements an HID Event Driver for HID devices that expose a digitiser usage page.
@@ -100,7 +103,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      * @numTouches The number of touches in the Touch array
      */
 
-    void reportTouches(struct Touch touches[], int numTouches);
+    void reportTouches(struct Touch touches[], int numTouches, bool stylusButton1, bool stylusButton2);
 
     /* Initialize the multitouch interface with the provided logical size
      * @logicalMaxX The logical max X coordinate in pixels
@@ -136,10 +139,20 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      *
      * @logicalX The logical X position of the event
      * @logicalY The logical Y position of the event
-     * @click Whether this is a click event
+     * @clickType what type of click to dispatch, if any
      */
 
     void dispatchDigitizerEvent(int logicalX, int logicalY, UInt32 clickType);
+
+    /* Dispatch a pen event at the given screen coordinate
+     *
+     * @logicalX The logical X position of the event
+     * @logicalY The logical Y position of the event
+     * @pressure The pressure (0-1024)
+     * @clickType what type of click to dispatch, if any
+     */
+
+    void dispatchPenEvent(int logicalX, int logicalY, int pressure, UInt32 clickType);
 
     /* Dispatch a finger lift event at the location of the last digitizer event
      */
@@ -174,7 +187,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      *
      * @touch A single Touch object
      */
-    void handleSingletouchInteraction(Touch touch);
+    void handleSingletouchInteraction(Touch touch, bool stylusButton1, bool stylusButton2);
 
     /* Schedule a check for a click
      */

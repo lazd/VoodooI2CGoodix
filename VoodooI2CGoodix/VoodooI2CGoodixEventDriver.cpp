@@ -21,6 +21,25 @@ static UInt64 getNanoseconds() {
     return nanoseconds;
 }
 
+void VoodooI2CGoodixEventDriver::dispatchPenEvent(int logicalX, int logicalY, int pressure, UInt32 clickType) {
+    AbsoluteTime timestamp;
+    clock_get_uptime(&timestamp);
+
+    // Convert logical coordinates to IOFixed and Scaled;
+    IOFixed x = ((logicalX * 1.0f) / multitouch_interface->logical_max_x) * 65535;
+    IOFixed y = ((logicalY * 1.0f) / multitouch_interface->logical_max_y) * 65535;
+    IOFixed tipPressure = ((pressure * 1.0f) / 1024) * 65535;
+
+    checkRotation(&x, &y);
+
+    // Dispatch the actual event
+    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerStylus, 0x1, clickType, x, y, 65535, tipPressure);
+
+    // Store the coordinates so we can lift the finger later
+    lastEventFixedX = x;
+    lastEventFixedY = y;
+}
+
 void VoodooI2CGoodixEventDriver::dispatchDigitizerEvent(int logicalX, int logicalY, UInt32 clickType) {
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
@@ -75,18 +94,38 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     }
 }
 
-void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch) {
+void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool stylusButton1, bool stylusButton2) {
     int logicalX = touch.x;
     int logicalY = touch.y;
     int width = touch.width;
+    bool isStylus = touch.type;
 
-    if (width == 0) {
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-        IOLog("%s::Stylus hovering at %d, %d \n", getName(), logicalX, logicalY);
-        #endif
+    if (isStylus) {
+        UInt8 type = HOVER;
 
-        // Stylus hovers come with a 0 width, so don't bother with any of our routines
-        dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+        if (width == 0) {
+            #ifdef GOODIX_EVENT_DRIVER_DEBUG
+            IOLog("%s::Stylus hovering at %d, %d \n", getName(), logicalX, logicalY);
+            #endif
+        }
+        else {
+            if (stylusButton1) {
+                type = RIGHT_CLICK;
+                #ifdef GOODIX_EVENT_DRIVER_DEBUG
+                IOLog("%s::Stylus right click at %d, %d \n", getName(), logicalX, logicalY);
+                #endif
+            }
+            else {
+                type = LEFT_CLICK;
+                #ifdef GOODIX_EVENT_DRIVER_DEBUG
+                IOLog("%s::Stylus left click at %d, %d \n", getName(), logicalX, logicalY);
+                #endif
+            }
+
+            scheduleLift();
+        }
+
+        dispatchPenEvent(logicalX, logicalY, width, type);
 
         return;
     }
@@ -242,7 +281,7 @@ void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touche
     scheduleLift();
 }
 
-void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches) {
+void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTouches, bool stylusButton1, bool stylusButton2) {
     if (!activeFramebuffer) {
         activeFramebuffer = getFramebuffer();
     }
@@ -253,7 +292,7 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     }
 
     if (numTouches == 1) {
-        handleSingletouchInteraction(touches[0]);
+        handleSingletouchInteraction(touches[0], stylusButton1, stylusButton2);
     }
     else {
         handleMultitouchInteraction(touches, numTouches);
