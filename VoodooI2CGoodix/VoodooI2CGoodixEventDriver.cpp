@@ -78,6 +78,18 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
 void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch) {
     int logicalX = touch.x;
     int logicalY = touch.y;
+    int width = touch.width;
+
+    if (width == 0) {
+        #ifdef GOODIX_EVENT_DRIVER_DEBUG
+        IOLog("%s::Stylus hovering at %d, %d \n", getName(), logicalX, logicalY);
+        #endif
+
+        // Stylus hovers come with a 0 width, so don't bother with any of our routines
+        dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+
+        return;
+    }
 
     UInt64 nanoseconds = getNanoseconds();
 
