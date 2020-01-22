@@ -9,6 +9,13 @@
 
 VoodooI2CGoodix is a [VoodooI2C satellite](https://github.com/alexandred/VoodooI2C) that enables touchscreen support for the Goodix GT9111 and others in macOS.
 
+## Supported Systems
+
+VoodooI2CGoodix is confirmed working on the following systems:
+
+* Chuwi MiniBook 8
+* GPD P2 Max
+
 ## Installation
 
 1. Ensure your [DSDT is fully patched](https://github.com/alexandred/VoodooI2C-Patches), [GPIO pinned](https://voodooi2c.github.io/#GPIO%20Pinning/GPIO%20Pinning), and that VoodooI2C recognizes your I2C controllers. This kext will not work otherwise.
@@ -22,6 +29,8 @@ VoodooI2CGoodix is a [VoodooI2C satellite](https://github.com/alexandred/VoodooI
 ## Usage
 
 If installation was successful, you should now be able to tap and drag on the touchscreen. In addition, all trackpad gestures are supported, such as two finger scrolling, pinch to zoom, twist to rotate, etc. See the Trackpad preference pane in System Preferences for configuration and examples.
+
+Finally, stylus support is present, with right click support using the stylus' button.
 
 You will want to set your scroll direction to "Natural" in the Trackpad preference pane so scrolling with the touchscreen is intuitive.
 
