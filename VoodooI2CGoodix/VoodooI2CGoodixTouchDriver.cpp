@@ -207,6 +207,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     if (!event_driver_initialized) {
         IOLog("%s::Could not initialise event_driver\n", getName());
         OSSafeReleaseNULL(event_driver);
+        goto start_exit;
     }
 
     event_driver->configureMultitouchInterface(ts->abs_x_max, ts->abs_y_max, GOODIX_MAX_CONTACTS, GOODIX_VENDOR_ID);
