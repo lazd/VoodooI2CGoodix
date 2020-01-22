@@ -215,6 +215,8 @@ private:
     bool fingerDown = false;
     UInt64 fingerDownStart = 0;
 
+    UInt8 stylusTransducerID;
+
     bool scrollStarted = false;
 };
 

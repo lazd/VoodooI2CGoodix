@@ -367,7 +367,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
         swap(input_x, input_y);
     }
 
-    #ifndef GOODIX_TOUCH_DRIVER_DEBUG
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::%s %d with width %d at %d,%d\n", getName(), type ? "Stylus" : "Touch", id, input_w, input_x, input_y);
     #endif
 

@@ -33,7 +33,7 @@ void VoodooI2CGoodixEventDriver::dispatchPenEvent(int logicalX, int logicalY, in
     checkRotation(&x, &y);
 
     // Dispatch the actual event
-    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerStylus, 0x1, clickType, x, y, 65535, tipPressure);
+    dispatchDigitizerEventWithTiltOrientation(timestamp, stylusTransducerID, kDigitiserTransducerStylus, 0x1, clickType, x, y, 0, tipPressure);
 
     // Store the coordinates so we can lift the finger later
     lastEventFixedX = x;
@@ -395,7 +395,7 @@ multitouch_exit:
 
 void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, int logicalMaxY, int numTransducers, UInt32 vendorId) {
     if (multitouch_interface) {
-        IOLog("%s::Configuring multitouch interface with dimensions %d,%d and %d transducers\n", getName(), logicalMaxX, logicalMaxY, numTransducers);
+        IOLog("%s::Configuring multitouch interface with dimensions %d,%d and %d transducers\n", getName(), logicalMaxX, logicalMaxY, numTransducers + 1);
 
         multitouch_interface->physical_max_x = logicalMaxX;
         multitouch_interface->physical_max_y = logicalMaxY;
@@ -408,16 +408,17 @@ void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, i
         setProperty(kIOHIDVendorIDKey, vendorId, 32);
         setProperty(kIOHIDProductIDKey, vendorId, 32);
 
-        transducers = OSArray::withCapacity(numTransducers);
+        transducers = OSArray::withCapacity(numTransducers + 1);
         if (!transducers) {
             IOLog("%s::No memory to allocate transducers array\n", getName());
             return;
         }
+
         DigitiserTransducerType type = kDigitiserTransducerFinger;
         for (int i = 0; i < numTransducers; i++) {
             VoodooI2CDigitiserTransducer* transducer = VoodooI2CDigitiserTransducer::transducer(type, NULL);
-            transducer->type = kDigitiserTransducerFinger;
 
+            transducer->type = kDigitiserTransducerFinger;
             transducer->logical_max_x = multitouch_interface->logical_max_x;
             transducer->logical_max_y = multitouch_interface->logical_max_y;
             transducer->id = i;
@@ -426,8 +427,19 @@ void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, i
             transducers->setObject(transducer);
         }
 
-        OSDictionary* properties = OSDictionary::withCapacity(2);
+        // Set up an additional transducer as the stylus
+        stylusTransducerID = numTransducers;
+        VoodooI2CDigitiserTransducer* transducer = VoodooI2CDigitiserTransducer::transducer(kDigitiserTransducerStylus, NULL);
 
+        transducer->type = kDigitiserTransducerStylus;
+        transducer->logical_max_x = multitouch_interface->logical_max_x;
+        transducer->logical_max_y = multitouch_interface->logical_max_y;
+        transducer->id = stylusTransducerID;
+        transducer->secondary_id = stylusTransducerID;
+
+        transducers->setObject(transducer);
+
+        OSDictionary* properties = OSDictionary::withCapacity(2);
         if (!properties) {
             IOLog("%s::No memory to allocate properties dictionary\n", getName());
             return;
