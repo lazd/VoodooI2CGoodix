@@ -213,6 +213,7 @@ private:
     UInt16 nextLogicalY = 0;
     UInt8 currentInteractionType = LEFT_CLICK;
     bool fingerDown = false;
+    bool isMultitouch = false;
     UInt64 fingerDownStart = 0;
 
     UInt8 stylusTransducerID;

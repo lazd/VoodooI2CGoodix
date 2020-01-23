@@ -77,6 +77,9 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     fingerDown = false;
     currentInteractionType = HOVER;
 
+    // Reset multitouch status so we can get single finger interactions again
+    isMultitouch = false;
+
     scrollStarted = false;
 
     // Reset all transducers
@@ -147,6 +150,10 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                 IOLog("%s::Still hovering at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
                 #endif
 
+                // Wait a tick to begin the click check
+                // This helps avoid phantom clicks
+                scheduleClickCheck();
+
                 // Check for a right click
                 if (currentInteractionType == RIGHT_CLICK) {
                     // Keep the right mousebutton down in the same place
@@ -211,9 +218,6 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
         nextLogicalY = logicalY;
         currentInteractionType = LEFT_CLICK;
 
-        // Every interaction could be a click, so check for one in a bit
-        scheduleClickCheck();
-
         #ifdef GOODIX_EVENT_DRIVER_DEBUG
         IOLog("%s::Began hover at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
         #endif
@@ -253,7 +257,14 @@ void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touche
         dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
 
         scrollStarted = true;
+        #ifdef GOODIX_EVENT_DRIVER_DEBUG
+        IOLog("%s::Starting scroll\n", getName());
+        #endif
     }
+
+    #ifdef GOODIX_EVENT_DRIVER_DEBUG
+    IOLog("%s::Handling multitouch with %d fingers\n", getName(), numTouches);
+    #endif
 
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
@@ -292,9 +303,21 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
     }
 
     if (numTouches == 1) {
-        handleSingletouchInteraction(touches[0], stylusButton1, stylusButton2);
+        // Block single touch interactions until fingers have lifted after a multitouch interaction
+        if (!isMultitouch) {
+            handleSingletouchInteraction(touches[0], stylusButton1, stylusButton2);
+        }
+        else {
+            #ifdef GOODIX_EVENT_DRIVER_DEBUG
+            IOLog("%s::Blocking phantom single touch interaction\n", getName());
+            #endif
+        }
     }
     else {
+        // Cancel our outstanding click, we're multitouching
+        this->clickTimerSource->cancelTimeout();
+
+        isMultitouch = true;
         handleMultitouchInteraction(touches, numTouches);
     }
 }
