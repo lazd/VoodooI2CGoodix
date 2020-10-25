@@ -53,8 +53,6 @@
 		<string>1.4</string>
 		<key>com.apple.iokit.IOHIDFamily</key>
 		<string>2.0</string>
-		<key>com.apple.iokit.IOGraphicsFamily</key>
-		<string>1.0.0b1</string>
 		<key>com.apple.kpi.iokit</key>
 		<string>14</string>
 		<key>com.apple.kpi.libkern</key>
