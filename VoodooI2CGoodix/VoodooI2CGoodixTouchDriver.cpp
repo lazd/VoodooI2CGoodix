@@ -136,7 +136,7 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
         IOLog("%s::Could not get ACPI device\n", getName());
         return NULL;
     }
-    acpi_device->evaluateObject("_PS0");
+    acpi_device->evaluateObject(enabled ? "_PS0" : "_PS3");
     
     api = OSDynamicCast(VoodooI2CDeviceNub, provider);
     if (!api) {
