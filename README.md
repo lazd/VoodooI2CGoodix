@@ -1,3 +1,5 @@
+# WARNNING: THE CODE IN THIS REPOSITY IS FOR GPD WINMAX ONLY !!!
+
 
 [![Releases](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)](https://github.com/lazd/VoodooI2CGoodix/releases) 
 [![Gitter chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg?colorB=ed1965)](https://gitter.im/lazd/VoodooI2CGoodix) 
