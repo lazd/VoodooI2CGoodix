@@ -64,14 +64,31 @@ void VoodooI2CGoodixEventDriver::scheduleLift() {
 }
 
 void VoodooI2CGoodixEventDriver::fingerLift() {
-    #ifdef GOODIX_EVENT_DRIVER_DEBUG
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
     IOLog("%s::Finger lifted\n", getName());
-    #endif
+#endif
 
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
+    
+    if (scrollStarted) {
+        // Restore the cursor posotion after scroll
+        dispatchDigitizerEvent(scrollCursorPosXSave, scrollCursorPosYSave, HOVER);
+        
+        scrollStarted = false;
+    } else {
+        dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, lastEventFixedX, lastEventFixedY);
+    }
 
-    dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, lastEventFixedX, lastEventFixedY);
+    if (cursorHided) {
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+        IOLog("%s::show cursor\n", getName());
+#endif
+        
+        //activeFramebuffer->resetCursor(); // This line will case problem, I don't know why
+        activeFramebuffer->MyShowCursor();
+        cursorHided = false;
+    }
 
     // Mark that the finger has been lifted
     fingerDown = false;
@@ -79,8 +96,6 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
 
     // Reset multitouch status so we can get single finger interactions again
     isMultitouch = false;
-
-    scrollStarted = false;
 
     // Reset all transducers
     for (int i = 0; i < transducers->getCount(); i++) {
@@ -95,6 +110,9 @@ void VoodooI2CGoodixEventDriver::fingerLift() {
     if (multitouch_interface) {
         multitouch_interface->handleInterruptReport(event, timestamp);
     }
+    
+	// Reset variable
+    doNotSimScroll = false;
 }
 
 void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool stylusButton1, bool stylusButton2) {
@@ -167,13 +185,21 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                     if (elapsed > RIGHT_CLICK_DELAY) {
                         // Cancel our outstanding click, we're right clicking now
                         this->clickTimerSource->cancelTimeout();
+                        
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+                        IOLog("%s::do not sim scroll at %d, %d\n", getName(), logicalX, logicalY);
+#endif
 
-                        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-                        IOLog("%s::Right click at %d, %d\n", getName(), logicalX, logicalY);
-                        #endif
+                        // If long pressed, do not simulate scroll but drag
+                        doNotSimScroll = true;
+                        //#ifdef GOODIX_EVENT_DRIVER_DEBUG
+                        //IOLog("%s::Right click at %d, %d\n", getName(), logicalX, logicalY);
+                        //#endif
 
-                        dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
-                        currentInteractionType = RIGHT_CLICK;
+                        //dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
+                        //currentInteractionType = RIGHT_CLICK;
+                        dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
+                        currentInteractionType = DRAG;
                     }
                 }
             }
@@ -183,19 +209,22 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                 // Cancel our outstanding click, we're dragging now
                 this->clickTimerSource->cancelTimeout();
 
-                #ifdef GOODIX_EVENT_DRIVER_DEBUG
-                IOLog("%s::Begin dragging at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
-                #endif
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+                IOLog("%s::Begin scrolling at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+#endif
 
                 // Issue a mousedown where we were before
                 dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
 
                 currentInteractionType = DRAG;
+                
+                // Let one finger to scroll
+                scrollStarted = true;
             }
 
-            #ifdef GOODIX_EVENT_DRIVER_DEBUG
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
             IOLog("%s::Dragging at %d, %d\n", getName(), logicalX, logicalY);
-            #endif
+#endif
 
             // Report that we moved with the mousedown
             if (currentInteractionType == RIGHT_CLICK) {
@@ -218,9 +247,13 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
         nextLogicalY = logicalY;
         currentInteractionType = LEFT_CLICK;
 
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
         IOLog("%s::Began hover at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
-        #endif
+#endif
+        
+		// Save time for double tap recognition
+        secondLastClickNanoSecs = lastClickNanoSecs;
+        lastClickNanoSecs = nanoseconds;
 
         dispatchDigitizerEvent(logicalX, logicalY, HOVER);
     }
@@ -236,15 +269,27 @@ void VoodooI2CGoodixEventDriver::scheduleClickCheck() {
 
 void VoodooI2CGoodixEventDriver::checkForClick() {
     if (!fingerDown) {
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-        IOLog("%s::Executing a click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
-        #endif
+        if (lastClickNanoSecs != 0 && secondLastClickNanoSecs != 0 &&
+            lastClickNanoSecs - secondLastClickNanoSecs < DOUBLE_CLICK_DELAY * 1000000) {
+			// We found a double tap, execute it
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+            IOLog("%s::Executing a double click at %d, %d, lastClickNanoSecs: %llu, secondLastClickNanoSecs: %llu, delta: %lld\n", getName(), nextLogicalX, nextLogicalY, lastClickNanoSecs, secondLastClickNanoSecs, lastClickNanoSecs - secondLastClickNanoSecs);
+#endif
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+        } else {
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+            IOLog("%s::Executing a click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+#endif
 
-        // The finger was lifted within click time, which means we have a click!
-        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
-
-        // Immediately lift, we're doing this quick status since we already waited
-        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+            // The finger was lifted within click time, which means we have a click!
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+            
+            // Immediately lift, we're doing this quick status since we already waited
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+        }
     }
 }
 
@@ -252,19 +297,24 @@ void VoodooI2CGoodixEventDriver::handleMultitouchInteraction(struct Touch touche
     // Set rotation for gestures
     multitouch_interface->setProperty(kIOFBTransformKey, currentRotation, 8);
 
-    if (numTouches == 2 && !scrollStarted) {
-        // Move the cursor to the location between the two fingers
-        dispatchDigitizerEvent((touches[0].x + touches[1].x) / 2, (touches[0].y + touches[1].y) / 2, HOVER);
+    if (numTouches == 2) {
+        scrollCursorPosXSave = (multitouch_interface->physical_max_x*2 - touches[0].x - touches[1].x) / 2;
+        scrollCursorPosYSave = (multitouch_interface->physical_max_y*2 - touches[0].y - touches[1].y) / 2;
 
+        if (activeFramebuffer && !cursorHided) {
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
+            IOLog("%s::hide cursor while scrolling\n", getName());
+#endif
+            activeFramebuffer->MyHideCursor();
+            cursorHided = true;
+        }
+        
         scrollStarted = true;
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-        IOLog("%s::Starting scroll\n", getName());
-        #endif
     }
 
-    #ifdef GOODIX_EVENT_DRIVER_DEBUG
+#ifdef GOODIX_EVENT_DRIVER_DEBUG
     IOLog("%s::Handling multitouch with %d fingers\n", getName(), numTouches);
-    #endif
+#endif
 
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
@@ -403,6 +453,11 @@ IOReturn VoodooI2CGoodixEventDriver::publishMultitouchInterface() {
         IOLog("%s::Failed to attach multitouch interface\n", getName());
         goto multitouch_exit;
     }
+	// This fix is for gpd winmax only, if you want to use in other device, modify the resolution as needed
+    multitouch_interface->physical_max_x = 1280;
+    multitouch_interface->physical_max_y = 800;
+    multitouch_interface->logical_max_x = 1280;
+    multitouch_interface->logical_max_y = 800;
     if (!multitouch_interface->start(this)) {
         IOLog("%s::Failed to start multitouch interface\n", getName());
         goto multitouch_exit;
@@ -495,20 +550,22 @@ bool VoodooI2CGoodixEventDriver::start(IOService* provider) {
     return true;
 }
 
-IOFramebuffer* VoodooI2CGoodixEventDriver::getFramebuffer() {
-    IODisplay* display = NULL;
-    IOFramebuffer* framebuffer = NULL;
+MyIOFramebuffer* VoodooI2CGoodixEventDriver::getFramebuffer() {
+    IORegistryEntry* display = NULL;
+    MyIOFramebuffer* framebuffer = NULL;
 
     OSDictionary *match = serviceMatching("IODisplay");
     OSIterator *iterator = getMatchingServices(match);
 
     if (iterator) {
-        display = OSDynamicCast(IODisplay, iterator->getNextObject());
+        display = OSDynamicCast(IORegistryEntry, iterator->getNextObject());
 
         if (display) {
             IOLog("%s::Got active display\n", getName());
 
-            framebuffer = OSDynamicCast(IOFramebuffer, display->getParentEntry(gIOServicePlane)->getParentEntry(gIOServicePlane));
+            IORegistryEntry *entry = display->getParentEntry(gIOServicePlane)->getParentEntry(gIOServicePlane);
+            if (entry)
+                framebuffer = static_cast<MyIOFramebuffer*>(entry->metaCast("IOFramebuffer"));
 
             if (framebuffer) {
                 IOLog("%s::Got active framebuffer\n", getName());

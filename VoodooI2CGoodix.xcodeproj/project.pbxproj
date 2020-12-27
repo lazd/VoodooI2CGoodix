@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9686593025977B910005B632 /* MyIOFramebuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9686592E25977B910005B632 /* MyIOFramebuffer.cpp */; };
+		9686593125977B910005B632 /* MyIOFramebuffer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 9686592F25977B910005B632 /* MyIOFramebuffer.hpp */; };
 		EE80555023C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */; };
 		EE80555123C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp in Headers */ = {isa = PBXBuildFile; fileRef = EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */; };
 		F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F613CC2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp */; };
@@ -14,6 +16,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		9686592E25977B910005B632 /* MyIOFramebuffer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MyIOFramebuffer.cpp; sourceTree = "<group>"; };
+		9686592F25977B910005B632 /* MyIOFramebuffer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MyIOFramebuffer.hpp; sourceTree = "<group>"; };
 		EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VoodooI2CGoodixEventDriver.cpp; sourceTree = "<group>"; };
 		EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VoodooI2CGoodixEventDriver.hpp; sourceTree = "<group>"; };
 		F1F613BE20902F4C00F1B282 /* VoodooI2CGoodix.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoodooI2CGoodix.kext; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +63,8 @@
 				F1F613CD2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp */,
 				EE80554E23C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp */,
 				EE80554F23C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp */,
+				9686592E25977B910005B632 /* MyIOFramebuffer.cpp */,
+				9686592F25977B910005B632 /* MyIOFramebuffer.hpp */,
 			);
 			path = VoodooI2CGoodix;
 			sourceTree = "<group>";
@@ -71,6 +77,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EE80555123C2AFB20038376B /* VoodooI2CGoodixEventDriver.hpp in Headers */,
+				9686593125977B910005B632 /* MyIOFramebuffer.hpp in Headers */,
 				F1F613CF2090304000F1B282 /* VoodooI2CGoodixTouchDriver.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -143,6 +150,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F1F613CE2090304000F1B282 /* VoodooI2CGoodixTouchDriver.cpp in Sources */,
+				9686593025977B910005B632 /* MyIOFramebuffer.cpp in Sources */,
 				EE80555023C2AFB20038376B /* VoodooI2CGoodixEventDriver.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -262,9 +270,13 @@
 		F1F613C720902F4C00F1B282 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = x86_64;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = VoodooI2CGoodix/Info.plist;
+				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
+				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Library/x86_64";
 				MODULE_NAME = net.lazd.VoodooI2CGoodix;
 				MODULE_VERSION = 1.0.0d1;
 				PRODUCT_BUNDLE_IDENTIFIER = net.lazd.VoodooI2CGoodix;
@@ -276,9 +288,13 @@
 		F1F613C820902F4C00F1B282 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = x86_64;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = VoodooI2CGoodix/Info.plist;
+				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
+				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Library/x86_64";
 				MODULE_NAME = net.lazd.VoodooI2CGoodix;
 				MODULE_VERSION = 1.0.0d1;
 				PRODUCT_BUNDLE_IDENTIFIER = net.lazd.VoodooI2CGoodix;
