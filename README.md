@@ -1,4 +1,4 @@
-# WARNNING: THE CODE IN THIS REPOSITY IS FOR GPD WINMAX ONLY !!!
+# ⚠️⚠️⚠️ WARNNING: THE CODE IN THIS REPOSITY IS FOR GPD WINMAX ONLY !!! ⚠️⚠️⚠️
 
 
 [![Releases](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)](https://github.com/lazd/VoodooI2CGoodix/releases) 
