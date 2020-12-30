@@ -4,7 +4,7 @@ Check out MacKernelSDK before you build the source !!
 git clone https://github.com/acidanthera/MacKernelSDK
 
 Modifications compared to the original one:
-1. Fixed multitouch problem for winmax
+1. Fixed multitouch problem for winmax. (By hard code the resolution of winmax in the driver)
 2. Fixed initialization problem for winmax, which will fail to load driver occasionally at boot
 3. One finger default to scroll, one finger long press act as the original drag
 4. Fixed double tap problem
