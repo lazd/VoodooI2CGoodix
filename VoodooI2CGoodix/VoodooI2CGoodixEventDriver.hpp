@@ -33,7 +33,10 @@
 
 #include "../../../Dependencies/helpers.hpp"
 
+#include "MyIOFramebuffer.hpp"
+
 #define FINGER_LIFT_DELAY   30
+#define DOUBLE_CLICK_DELAY  300
 #define CLICK_DELAY         150
 #define RIGHT_CLICK_DELAY   600
 #define HOVER       0x0
@@ -113,6 +116,12 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
      */
 
     void configureMultitouchInterface(int logicalMaxX, int logicalMaxY, int numTransducers, UInt32 vendorId);
+    
+    bool isScrollStarted() { return scrollStarted; }
+    UInt16 getNextLogicalX() { return nextLogicalX; }
+    UInt16 getNextLogicalY() { return nextLogicalY; }
+    UInt8 getCurrentInteractionType() { return currentInteractionType; }
+    bool isDoNotSimScroll() { return doNotSimScroll; }
 
  protected:
     VoodooI2CMultitouchInterface* multitouch_interface;
@@ -166,7 +175,7 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     /* Get the active framebuffer
      */
-    IOFramebuffer* getFramebuffer();
+    MyIOFramebuffer* getFramebuffer();
 
     /* Rotate coordinates to match current framebuffer's rotation
      *
@@ -202,7 +211,7 @@ private:
     IOWorkLoop *work_loop;
     IOTimerEventSource *liftTimerSource;
     IOTimerEventSource *clickTimerSource;
-    IOFramebuffer* activeFramebuffer = NULL;
+    MyIOFramebuffer* activeFramebuffer = NULL;
 
     UInt8 currentRotation;
 
@@ -219,6 +228,14 @@ private:
     UInt8 stylusTransducerID;
 
     bool scrollStarted = false;
+    bool doNotSimScroll = false;
+    bool cursorHided = false;
+    
+    UInt64 lastClickNanoSecs = 0;
+    UInt64 secondLastClickNanoSecs = 0;
+    
+    UInt16 scrollCursorPosXSave = 0;
+    UInt16 scrollCursorPosYSave = 0;
 };
 
 

@@ -1,3 +1,14 @@
+# ⚠️⚠️⚠️ WARNNING: THE CODE IN THIS REPOSITY IS FOR GPD WINMAX ONLY !!! ⚠️⚠️⚠️
+Check out MacKernelSDK before you build the source !!
+
+git clone https://github.com/acidanthera/MacKernelSDK
+
+Modifications compared to the original one:
+1. Fixed multitouch problem for winmax. (By hard code the resolution of winmax in the driver, this is what makes it for winmax only)
+2. Fixed initialization problem for winmax, which will fail to load driver occasionally at boot
+3. One finger default to scroll, one finger long press act as the original drag
+4. Fixed double tap problem, the original one does not have double tap
+
 
 [![Releases](https://img.shields.io/github/release/lazd/VoodooI2CGoodix.svg)](https://github.com/lazd/VoodooI2CGoodix/releases) 
 [![Gitter chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg?colorB=ed1965)](https://gitter.im/lazd/VoodooI2CGoodix) 

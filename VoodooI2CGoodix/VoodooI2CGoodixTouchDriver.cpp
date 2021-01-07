@@ -136,6 +136,8 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
         IOLog("%s::Could not get ACPI device\n", getName());
         return NULL;
     }
+    acpi_device->evaluateObject("_PS0");
+    
     api = OSDynamicCast(VoodooI2CDeviceNub, provider);
     if (!api) {
         IOLog("%s::Could not get VoodooI2C API instance\n", getName());
@@ -241,6 +243,7 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
 
 void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
     if (!ready_for_input || !command_gate) {
+        interrupt_source->enable(); // Fix initialization problem
         read_in_progress = false;
         return;
     }
@@ -267,6 +270,43 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     if (numTouches <= 0) {
         return kIOReturnSuccess;
     }
+    
+    
+    if (numTouches == 1) {
+        UInt8 *pd0 = &data[1];
+        int input_x = get_unaligned_le16(&pd0[1]);
+        int input_y = get_unaligned_le16(&pd0[3]);
+        
+        input_x += 5; // Shift x up 5 pixel for better experience
+        pd0[1] = input_x & 0xFF;
+        pd0[2] = (input_x & 0xFF00) >> 8;
+        
+        if (!event_driver->isDoNotSimScroll()) {
+            if ((event_driver->getCurrentInteractionType() == LEFT_CLICK &&
+                (input_x != event_driver->getNextLogicalX() ||
+                input_y != event_driver->getNextLogicalY())) || event_driver->isScrollStarted()) {
+                // Dragging, simulate scroll by faking two finger tap
+                UInt8 *pd1 = &data[1 + GOODIX_CONTACT_SIZE];
+
+                short x1 = input_x - 50; // simulate horizontal two finger tap
+                short x2 = input_x + 50;
+                pd0[1] = x1 & 0xFF;
+                pd0[2] = (x1 & 0xFF00) >> 8;
+                pd1[1] = x2 & 0xFF;
+                pd1[2] = (x2 & 0xFF00) >> 8;
+                
+                pd1[0] = ((pd0[0] & 0x0F) + 1) + (pd0[0] & 0xF0);
+                pd1[3] = pd0[3];
+                pd1[4] = pd0[4];
+                pd1[5] = pd0[5];
+                pd1[6] = pd0[6];
+                pd1[7] = pd0[7];
+                
+                numTouches = 2;
+            }
+        }
+    }
+    
 
     UInt8 keys = data[1 + numTouches * GOODIX_CONTACT_SIZE];
     if (GOODIX_KEYDOWN_EVENT(keys)) {
@@ -281,7 +321,18 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     UInt8 *point_data;
     for (int i = 0; i < numTouches; i++) {
         point_data = &data[1 + i * GOODIX_CONTACT_SIZE];
-        goodix_ts_store_touch(point_data);
+        if (numTouches == 2) {
+		    // Let touchscreen scroll direction oppsite to trackpad, for better user experience
+            bool ivtxold = ts->inverted_x;
+            bool ivtyold = ts->inverted_y;
+            ts->inverted_x = true;
+            ts->inverted_y = true;
+            goodix_ts_store_touch(point_data);
+            ts->inverted_x = ivtxold;
+            ts->inverted_y = ivtyold;
+        } else {
+            goodix_ts_store_touch(point_data);
+        }
     }
 
     if (numTouches > 0) {
@@ -358,18 +409,29 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
     bool type = GOODIX_TOOL_TYPE(coor_data[0]) == GOODIX_TOOL_PEN;
 
     // Inversions have to happen before axis swapping
-    if (ts->inverted_x)
+    if (ts->inverted_x) {
+#ifdef GOODIX_TOUCH_DRIVER_DEBUG
+        IOLog("%s:: inverted_x %d, %d\n", getName(), input_x, ts->abs_x_max);
+#endif
         input_x = ts->abs_x_max - input_x;
-    if (ts->inverted_y)
+    }
+    if (ts->inverted_y) {
+#ifdef GOODIX_TOUCH_DRIVER_DEBUG
+        IOLog("%s:: inverted_y %d, %d\n", getName(), input_y, ts->abs_y_max);
+#endif
         input_y = ts->abs_y_max - input_y;
+    }
 
     if (ts->swapped_x_y) {
+#ifdef GOODIX_TOUCH_DRIVER_DEBUG
+        IOLog("%s:: swapped_x_y %d, %d\n", getName(), input_x, input_y);
+#endif
         swap(input_x, input_y);
     }
 
-    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+#ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::%s %d with width %d at %d,%d\n", getName(), type ? "Stylus" : "Touch", id, input_w, input_x, input_y);
-    #endif
+#endif
 
     // Store touch information
     touches[id].x = input_x;
@@ -386,9 +448,9 @@ void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
     super::stop(provider);
 }
 
-IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOService* whatDevice) {
+IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long whichState, IOService* whatDevice) {
     #ifndef GOODIX_TOUCH_DRIVER_DEBUG
-    if (powerState == 0) {
+    if (whichState == 0) {
         if (awake) {
             awake = false;
             while (read_in_progress) {
