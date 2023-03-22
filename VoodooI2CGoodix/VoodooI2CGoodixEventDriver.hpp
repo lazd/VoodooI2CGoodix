@@ -33,7 +33,7 @@
 
 #include "../../../Dependencies/helpers.hpp"
 
-#define FINGER_LIFT_DELAY   30
+#define FINGER_LIFT_DELAY   50
 #define CLICK_DELAY         100
 #define RIGHT_CLICK_DELAY   500
 #define HOVER       0x0
@@ -44,7 +44,9 @@
 #define DOUBLE_CLICK_TIME       450
 
 #define GOODIX_EVENT_DRIVER_CLICK_DEBUG
+#define GOODIX_EVENT_DRIVER_LIFT_DEBUG
 #define GOODIX_EVENT_DRIVER_HOVER_DEBUG
+#define GOODIX_EVENT_DRIVER_DRAG_DEBUG
 //#define GOODIX_EVENT_DRIVER_DEBUG
 
 struct Touch {
@@ -227,6 +229,7 @@ private:
     UInt8 currentInteractionType = LEFT_CLICK;
     bool fingerDown = false;
     bool isMultitouch = false;
+    bool movedDuringRightClick = false;
     UInt64 fingerDownStart = 0;
 
     UInt8 stylusTransducerID;
