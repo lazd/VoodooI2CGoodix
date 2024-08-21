@@ -136,6 +136,8 @@ VoodooI2CGoodixTouchDriver* VoodooI2CGoodixTouchDriver::probe(IOService* provide
         IOLog("%s::Could not get ACPI device\n", getName());
         return NULL;
     }
+    acpi_device->evaluateObject("_PS0");
+    
     api = OSDynamicCast(VoodooI2CDeviceNub, provider);
     if (!api) {
         IOLog("%s::Could not get VoodooI2C API instance\n", getName());
@@ -386,8 +388,8 @@ void VoodooI2CGoodixTouchDriver::stop(IOService* provider) {
     super::stop(provider);
 }
 
-IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long powerState, IOService* whatDevice) {
-    if (powerState == 0) {
+IOReturn VoodooI2CGoodixTouchDriver::setPowerState(unsigned long whichState, IOService* whatDevice) {
+    if (whichState == 0) {
         if (awake) {
             awake = false;
             while (read_in_progress) {
