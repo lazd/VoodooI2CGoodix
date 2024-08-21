@@ -33,14 +33,20 @@
 
 #include "../../../Dependencies/helpers.hpp"
 
-#define FINGER_LIFT_DELAY   30
-#define CLICK_DELAY         150
-#define RIGHT_CLICK_DELAY   600
+#define FINGER_LIFT_DELAY   50
+#define CLICK_DELAY         100
+#define RIGHT_CLICK_DELAY   500
 #define HOVER       0x0
 #define LEFT_CLICK  0x1
 #define RIGHT_CLICK 0x2
 #define DRAG        0x5
+#define DOUBLE_CLICK_FAT_ZONE   40
+#define DOUBLE_CLICK_TIME       450
 
+//#define GOODIX_EVENT_DRIVER_CLICK_DEBUG
+//#define GOODIX_EVENT_DRIVER_LIFT_DEBUG
+//#define GOODIX_EVENT_DRIVER_HOVER_DEBUG
+//#define GOODIX_EVENT_DRIVER_DRAG_DEBUG
 //#define GOODIX_EVENT_DRIVER_DEBUG
 
 struct Touch {
@@ -154,6 +160,10 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
 
     void dispatchPenEvent(int logicalX, int logicalY, int pressure, UInt32 clickType);
 
+    /* Check if this interaction is within fat finger distance
+     */
+    bool isCloseToLastInteraction(UInt16 x, UInt16 y);
+
     /* Dispatch a finger lift event at the location of the last digitizer event
      */
 
@@ -211,9 +221,15 @@ private:
 
     UInt16 nextLogicalX = 0;
     UInt16 nextLogicalY = 0;
+
+    UInt16 lastClickX = 0;
+    UInt16 lastClickY = 0;
+    UInt64 lastClickTime = 0;
+
     UInt8 currentInteractionType = LEFT_CLICK;
     bool fingerDown = false;
     bool isMultitouch = false;
+    bool movedDuringRightClick = false;
     UInt64 fingerDownStart = 0;
 
     UInt8 stylusTransducerID;

@@ -64,12 +64,24 @@ void VoodooI2CGoodixEventDriver::scheduleLift() {
 }
 
 void VoodooI2CGoodixEventDriver::fingerLift() {
-    #ifdef GOODIX_EVENT_DRIVER_DEBUG
+    #ifdef GOODIX_EVENT_DRIVER_LIFT_DEBUG
     IOLog("%s::Finger lifted\n", getName());
     #endif
 
     AbsoluteTime timestamp;
     clock_get_uptime(&timestamp);
+
+    // Special case: dispatch a click when hover ends if the finger was never lifted after a right click
+    // This simualtes right click and drag without all the fuss
+    if (currentInteractionType == RIGHT_CLICK && movedDuringRightClick) {
+        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+
+        #ifdef GOODIX_EVENT_DRIVER_CLICK_DEBUG
+        IOLog("%s::Right click drag end special case click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+        #endif
+    }
+    movedDuringRightClick = false;
 
     dispatchDigitizerEventWithTiltOrientation(timestamp, 0, kDigitiserTransducerFinger, 0x1, HOVER, lastEventFixedX, lastEventFixedY);
 
@@ -136,7 +148,23 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
     UInt64 nanoseconds = getNanoseconds();
 
     if (fingerDown) {
-        if (logicalX == nextLogicalX && logicalY == nextLogicalY) {
+        if (currentInteractionType == RIGHT_CLICK) {
+            // We just executed a right click, ignore other logic and let the mouse hover
+            dispatchDigitizerEvent(logicalX, logicalY, HOVER);
+
+            if (!isCloseToLastInteraction(logicalX, logicalY)) {
+                movedDuringRightClick = true;
+
+                // Store coordinates where we're gonna click
+                nextLogicalX = logicalX;
+                nextLogicalY = logicalY;
+            }
+
+            #ifdef GOODIX_EVENT_DRIVER_DRAG_DEBUG
+            IOLog("%s::Dragging for right click at %d, %d\n", getName(), logicalX, logicalY);
+            #endif
+        }
+        else if (logicalX == nextLogicalX && logicalY == nextLogicalY) {
             if (currentInteractionType == DRAG) {
                 #ifdef GOODIX_EVENT_DRIVER_DEBUG
                 IOLog("%s::Still dragging at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
@@ -146,35 +174,32 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                 dispatchDigitizerEvent(logicalX, logicalY, LEFT_CLICK);
             }
             else {
-                #ifdef GOODIX_EVENT_DRIVER_DEBUG
+                #ifdef GOODIX_EVENT_DRIVER_HOVER_DEBUG
                 IOLog("%s::Still hovering at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
                 #endif
 
-                // Wait a tick to begin the click check
-                // This helps avoid phantom clicks
-                scheduleClickCheck();
-
                 // Check for a right click
-                if (currentInteractionType == RIGHT_CLICK) {
-                    // Keep the right mousebutton down in the same place
+                UInt64 elapsed = (nanoseconds - fingerDownStart) / 1000000;
+                if (elapsed >= RIGHT_CLICK_DELAY) {
+                    // Cancel our outstanding click, we're right clicking now
+                    this->clickTimerSource->cancelTimeout();
+
+                    #ifdef GOODIX_EVENT_DRIVER_CLICK_DEBUG
+                    IOLog("%s::Right click at %d, %d\n", getName(), logicalX, logicalY);
+                    #endif
+
                     dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
+                    currentInteractionType = RIGHT_CLICK;
+                    movedDuringRightClick = false;
                 }
-                else {
-                    // Hover in the same place
-                    dispatchDigitizerEvent(logicalX, logicalY, HOVER);
 
-                    UInt64 elapsed = (nanoseconds - fingerDownStart) / 1000000;
-                    if (elapsed > RIGHT_CLICK_DELAY) {
-                        // Cancel our outstanding click, we're right clicking now
-                        this->clickTimerSource->cancelTimeout();
+                // Hover in the same place
+                dispatchDigitizerEvent(logicalX, logicalY, HOVER);
 
-                        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-                        IOLog("%s::Right click at %d, %d\n", getName(), logicalX, logicalY);
-                        #endif
-
-                        dispatchDigitizerEvent(logicalX, logicalY, RIGHT_CLICK);
-                        currentInteractionType = RIGHT_CLICK;
-                    }
+                if (currentInteractionType != RIGHT_CLICK) {
+                    // Wait a tick to begin the click check
+                    // This helps avoid phantom clicks
+                    scheduleClickCheck();
                 }
             }
         }
@@ -183,7 +208,7 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                 // Cancel our outstanding click, we're dragging now
                 this->clickTimerSource->cancelTimeout();
 
-                #ifdef GOODIX_EVENT_DRIVER_DEBUG
+                #ifdef GOODIX_EVENT_DRIVER_DRAG_DEBUG
                 IOLog("%s::Begin dragging at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
                 #endif
 
@@ -193,7 +218,7 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
                 currentInteractionType = DRAG;
             }
 
-            #ifdef GOODIX_EVENT_DRIVER_DEBUG
+            #ifdef GOODIX_EVENT_DRIVER_DRAG_DEBUG
             IOLog("%s::Dragging at %d, %d\n", getName(), logicalX, logicalY);
             #endif
 
@@ -218,7 +243,7 @@ void VoodooI2CGoodixEventDriver::handleSingletouchInteraction(Touch touch, bool 
         nextLogicalY = logicalY;
         currentInteractionType = LEFT_CLICK;
 
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
+        #ifdef GOODIX_EVENT_DRIVER_HOVER_DEBUG
         IOLog("%s::Began hover at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
         #endif
 
@@ -234,17 +259,46 @@ void VoodooI2CGoodixEventDriver::scheduleClickCheck() {
     this->clickTimerSource->setTimeoutMS(CLICK_DELAY);
 }
 
+bool VoodooI2CGoodixEventDriver::isCloseToLastInteraction(UInt16 x, UInt16 y) {
+    return (
+        abs(x - nextLogicalX) <= DOUBLE_CLICK_FAT_ZONE &&
+        abs(y - nextLogicalY) <= DOUBLE_CLICK_FAT_ZONE
+    );
+}
+
 void VoodooI2CGoodixEventDriver::checkForClick() {
     if (!fingerDown) {
-        #ifdef GOODIX_EVENT_DRIVER_DEBUG
-        IOLog("%s::Executing a click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
-        #endif
-
         // The finger was lifted within click time, which means we have a click!
-        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+        UInt64 nanoseconds = getNanoseconds();
 
-        // Immediately lift, we're doing this quick status since we already waited
+        UInt64 clickTimeDifference = (nanoseconds - lastClickTime) / 1000000;
+
+        if (
+            isCloseToLastInteraction(lastClickX, lastClickY) &&
+            clickTimeDifference <= DOUBLE_CLICK_TIME
+        ) {
+            nextLogicalX = lastClickX;
+            nextLogicalY = lastClickY;
+
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
+            dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+
+            #ifdef GOODIX_EVENT_DRIVER_CLICK_DEBUG
+            IOLog("%s::Executing a double click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+            #endif
+        }
+        else {
+            #ifdef GOODIX_EVENT_DRIVER_CLICK_DEBUG
+            IOLog("%s::Executing a click at %d, %d\n", getName(), nextLogicalX, nextLogicalY);
+            #endif
+        }
+
+        dispatchDigitizerEvent(nextLogicalX, nextLogicalY, LEFT_CLICK);
         dispatchDigitizerEvent(nextLogicalX, nextLogicalY, HOVER);
+
+        lastClickTime = nanoseconds;
+        lastClickX = nextLogicalX;
+        lastClickY = nextLogicalY;
     }
 }
 

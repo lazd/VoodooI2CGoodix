@@ -15,6 +15,8 @@ VoodooI2CGoodix is confirmed working on the following systems:
 
 * Chuwi MiniBook 8
 * GPD P2 Max
+* GPD Win 2
+* GPD Pocket 2
 
 ## Installation
 
