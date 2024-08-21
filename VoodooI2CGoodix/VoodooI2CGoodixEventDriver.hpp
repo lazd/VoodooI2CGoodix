@@ -21,7 +21,8 @@
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOTimerEventSource.h>
 
-#include <IOKit/hidevent/IOHIDEventService.h>
+#include <IOKit/hid/IOHIDDevice.h>
+#include <IOKit/hid/IOHIDEventService.h>
 #include <IOKit/hidsystem/IOHIDTypes.h>
 
 #include <IOKit/graphics/IOFramebuffer.h>
@@ -43,11 +44,11 @@
 #define DOUBLE_CLICK_FAT_ZONE   40
 #define DOUBLE_CLICK_TIME       450
 
-//#define GOODIX_EVENT_DRIVER_CLICK_DEBUG
-//#define GOODIX_EVENT_DRIVER_LIFT_DEBUG
-//#define GOODIX_EVENT_DRIVER_HOVER_DEBUG
-//#define GOODIX_EVENT_DRIVER_DRAG_DEBUG
-//#define GOODIX_EVENT_DRIVER_DEBUG
+#define GOODIX_EVENT_DRIVER_CLICK_DEBUG
+#define GOODIX_EVENT_DRIVER_LIFT_DEBUG
+#define GOODIX_EVENT_DRIVER_HOVER_DEBUG
+#define GOODIX_EVENT_DRIVER_DRAG_DEBUG
+#define GOODIX_EVENT_DRIVER_DEBUG
 
 struct Touch {
     int x;

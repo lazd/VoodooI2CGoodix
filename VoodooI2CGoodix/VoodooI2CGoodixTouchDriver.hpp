@@ -18,7 +18,7 @@
 #include "./VoodooI2CGoodixEventDriver.hpp"
 #include "goodix.h"
 
-//#define GOODIX_TOUCH_DRIVER_DEBUG
+#define GOODIX_TOUCH_DRIVER_DEBUG
 
 class VoodooI2CGoodixTouchDriver : public IOService {
     OSDeclareDefaultStructors(VoodooI2CGoodixTouchDriver);
