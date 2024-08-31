@@ -118,7 +118,7 @@ bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
     awake = true;
     ready_for_input = false;
     read_in_progress = false;
-    
+
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::init: ready_for_input = true\n", getName());
     #endif
@@ -195,7 +195,7 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
     IOSleep(100);
     ready_for_input = true;
-    
+
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::start: ready_for_input = true\n", getName());
     #endif
@@ -245,7 +245,7 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::interrupt_occurred: %d\n", getName(), intCount);
     #endif
-    
+
     interrupt_source->disable();
     read_in_progress = true;
     thread_t new_thread;
@@ -264,20 +264,19 @@ void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     IOLog("%s::handle_input_threaded: called\n", getName());
     #endif
-    
-    
+
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     if (!ready_for_input) {
         IOLog("%s::handle_input_threaded: not ready for input\n", getName());
     }
     #endif
-    
+
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
     if (!command_gate) {
         IOLog("%s::handle_input_threaded: no command gate\n", getName());
     }
     #endif
-    
+
     if (!ready_for_input || !command_gate) {
         read_in_progress = false;
         return;
