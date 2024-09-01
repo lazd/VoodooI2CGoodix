@@ -21,7 +21,8 @@
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOTimerEventSource.h>
 
-#include <IOKit/hidevent/IOHIDEventService.h>
+#include <IOKit/hid/IOHIDDevice.h>
+#include <IOKit/hid/IOHIDEventService.h>
 #include <IOKit/hidsystem/IOHIDTypes.h>
 
 #include <IOKit/graphics/IOFramebuffer.h>

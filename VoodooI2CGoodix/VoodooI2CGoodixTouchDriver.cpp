@@ -118,6 +118,11 @@ bool VoodooI2CGoodixTouchDriver::init(OSDictionary *properties) {
     awake = true;
     ready_for_input = false;
     read_in_progress = false;
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::init: ready_for_input = true\n", getName());
+    #endif
+
     return true;
 }
 
@@ -190,6 +195,11 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
     registerPowerDriver(this, VoodooI2CIOPMPowerStates, kVoodooI2CIOPMNumberPowerStates);
     IOSleep(100);
     ready_for_input = true;
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::start: ready_for_input = true\n", getName());
+    #endif
+
     setProperty("VoodooI2CServices Supported", OSBoolean::withBoolean(true));
     IOLog("%s::VoodooI2CGoodixTouchDriver has started\n", getName());
 
@@ -225,8 +235,17 @@ start_exit:
 
 void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterruptEventSource* src, int intCount) {
     if (read_in_progress || !awake) {
+        #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+        IOLog("%s::interrupt_occurred: ignoring interrupt %d\n", getName(), intCount);
+        #endif
+
         return;
     }
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::interrupt_occurred: %d\n", getName(), intCount);
+    #endif
+
     interrupt_source->disable();
     read_in_progress = true;
     thread_t new_thread;
@@ -242,6 +261,22 @@ void VoodooI2CGoodixTouchDriver::interrupt_occurred(OSObject* owner, IOInterrupt
 }
 
 void VoodooI2CGoodixTouchDriver::handle_input_threaded() {
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::handle_input_threaded: called\n", getName());
+    #endif
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    if (!ready_for_input) {
+        IOLog("%s::handle_input_threaded: not ready for input\n", getName());
+    }
+    #endif
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    if (!command_gate) {
+        IOLog("%s::handle_input_threaded: no command gate\n", getName());
+    }
+    #endif
+
     if (!ready_for_input || !command_gate) {
         read_in_progress = false;
         return;
@@ -266,6 +301,11 @@ IOReturn VoodooI2CGoodixTouchDriver::goodix_process_events() {
     UInt8 data[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS + 1];
 
     numTouches = goodix_ts_read_input_report(data);
+
+    #ifdef GOODIX_TOUCH_DRIVER_DEBUG
+    IOLog("%s::goodix_process_events: Got event report: %d\n", getName(), numTouches);
+    #endif
+
     if (numTouches <= 0) {
         return kIOReturnSuccess;
     }
@@ -370,7 +410,7 @@ void VoodooI2CGoodixTouchDriver::goodix_ts_store_touch(UInt8 *coor_data) {
     }
 
     #ifdef GOODIX_TOUCH_DRIVER_DEBUG
-    IOLog("%s::%s %d with width %d at %d,%d\n", getName(), type ? "Stylus" : "Touch", id, input_w, input_x, input_y);
+    IOLog("%s::goodix_ts_store_touch: %s %d with width %d at %d,%d\n", getName(), type ? "Stylus" : "Touch", id, input_w, input_x, input_y);
     #endif
 
     // Store touch information
