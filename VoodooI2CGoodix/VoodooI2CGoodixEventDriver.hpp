@@ -112,13 +112,15 @@ class EXPORT VoodooI2CGoodixEventDriver : public IOHIDEventService {
     void reportTouches(struct Touch touches[], int numTouches, bool stylusButton1, bool stylusButton2);
 
     /* Initialize the multitouch interface with the provided logical size
-     * @logicalMaxX The logical max X coordinate in pixels
-     * @logicalMaxY The logical max Y coordinate in pixels
+     * @logicalMaxX The logical max X coordinate, in digitiser counts
+     * @logicalMaxY The logical max Y coordinate, in digitiser counts
+     * @physicalMaxX The physical width of the touch surface, in 0.01mm units
+     * @physicalMaxY The physical height of the touch surface, in 0.01mm units
      * @numTransducers The maximum number of transducerrs
      * @vendorId The vendor ID of the touchscreen
      */
 
-    void configureMultitouchInterface(int logicalMaxX, int logicalMaxY, int numTransducers, UInt32 vendorId);
+    void configureMultitouchInterface(int logicalMaxX, int logicalMaxY, UInt32 physicalMaxX, UInt32 physicalMaxY, int numTransducers, UInt32 vendorId);
 
  protected:
     VoodooI2CMultitouchInterface* multitouch_interface;

@@ -353,7 +353,12 @@ void VoodooI2CGoodixEventDriver::reportTouches(struct Touch touches[], int numTo
 
     if (activeFramebuffer) {
         OSNumber* number = OSDynamicCast(OSNumber, activeFramebuffer->getProperty(kIOFBTransformKey));
-        currentRotation = number->unsigned8BitValue() / 0x10;
+        // A framebuffer need not publish IOFBTransform, and OSDynamicCast returns NULL if it
+        // is absent or not an OSNumber. This runs on every touch report, so an unchecked
+        // dereference here is a kernel panic on the first touch.
+        if (number) {
+            currentRotation = number->unsigned8BitValue() / 0x10;
+        }
     }
 
     if (numTouches == 1) {
@@ -470,12 +475,13 @@ multitouch_exit:
     return kIOReturnError;
 }
 
-void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, int logicalMaxY, int numTransducers, UInt32 vendorId) {
+void VoodooI2CGoodixEventDriver::configureMultitouchInterface(int logicalMaxX, int logicalMaxY, UInt32 physicalMaxX, UInt32 physicalMaxY, int numTransducers, UInt32 vendorId) {
     if (multitouch_interface) {
-        IOLog("%s::Configuring multitouch interface with dimensions %d,%d and %d transducers\n", getName(), logicalMaxX, logicalMaxY, numTransducers + 1);
+        IOLog("%s::Configuring multitouch interface: logical %d,%d physical %u,%u (0.01mm) and %d transducers\n",
+              getName(), logicalMaxX, logicalMaxY, physicalMaxX, physicalMaxY, numTransducers + 1);
 
-        multitouch_interface->physical_max_x = logicalMaxX;
-        multitouch_interface->physical_max_y = logicalMaxY;
+        multitouch_interface->physical_max_x = physicalMaxX;
+        multitouch_interface->physical_max_y = physicalMaxY;
         multitouch_interface->logical_max_x = logicalMaxX;
         multitouch_interface->logical_max_y = logicalMaxY;
 
@@ -562,7 +568,10 @@ IOFramebuffer* VoodooI2CGoodixEventDriver::getFramebuffer() {
         if (display) {
             IOLog("%s::Got active display\n", getName());
 
-            IORegistryEntry *entry = display->getParentEntry(gIOServicePlane)->getParentEntry(gIOServicePlane);
+            // getParentEntry() returns NULL at the top of the plane, so the first call must
+            // be checked before the second is chained onto it.
+            IORegistryEntry *parent = display->getParentEntry(gIOServicePlane);
+            IORegistryEntry *entry = parent ? parent->getParentEntry(gIOServicePlane) : NULL;
             if (entry)
                 framebuffer = reinterpret_cast<IOFramebuffer*>(entry->metaCast("IOFramebuffer"));
 

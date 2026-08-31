@@ -3,6 +3,17 @@
 
 #define GOODIX_VENDOR_ID    0x0416
 
+/* Optional gesture-magnitude trim, as a percentage of the configured physical surface size.
+ * 100 = physically accurate. Only consulted when PhysicalSurfaceWidth and
+ * PhysicalSurfaceHeight are both set in the personality. */
+#define GOODIX_GESTURE_GAIN_DEFAULT 100
+#define GOODIX_GESTURE_GAIN_MIN     10
+#define GOODIX_GESTURE_GAIN_MAX     300
+
+/* VoodooInput packs the surface size into a 16-bit field of the MT2 "Sensor Surface
+ * Description" feature report; overflowing it wraps to a nonsensically small surface. */
+#define GOODIX_PHYSICAL_MAX_LIMIT   65535
+
 #define GOODIX_READ_COOR_ADDR           0x814E
 #define GOODIX_GT1X_REG_CONFIG_DATA     0x8050
 #define GOODIX_GT9X_REG_CONFIG_DATA     0x8047
