@@ -212,7 +212,52 @@ bool VoodooI2CGoodixTouchDriver::start(IOService* provider) {
         goto start_exit;
     }
 
-    event_driver->configureMultitouchInterface(ts->abs_x_max, ts->abs_y_max, GOODIX_MAX_CONTACTS, GOODIX_VENDOR_ID);
+    // The touch surface's PHYSICAL size, in 0.01mm units. macOS derives scroll and pinch
+    // magnitude from this, so it must be a real-world measurement of the panel and not the
+    // digitiser's coordinate range. It is device specific, so it comes from the personality
+    // (see issue #4 - plist configuration for device specific quirks).
+    //
+    // If it is not configured we keep the historical behaviour of passing the coordinate
+    // range through, so no existing setup changes silently - but that value is wrong for
+    // every device and produces weak scroll/pinch (issue #24).
+    {
+        UInt32 physical_x = (UInt32)ts->abs_x_max;
+        UInt32 physical_y = (UInt32)ts->abs_y_max;
+        OSNumber* configured;
+        bool have_x = false, have_y = false;
+
+        if ((configured = OSDynamicCast(OSNumber, getProperty("PhysicalSurfaceWidth")))) {
+            physical_x = configured->unsigned32BitValue();
+            have_x = true;
+        }
+        if ((configured = OSDynamicCast(OSNumber, getProperty("PhysicalSurfaceHeight")))) {
+            physical_y = configured->unsigned32BitValue();
+            have_y = true;
+        }
+
+        if (have_x && have_y) {
+            // Optional trim for users who prefer gestures faster or slower than physically
+            // accurate. 100 = honest. Clamped, and the product is clamped to the 16-bit
+            // ceiling of the field VoodooInput packs this into.
+            UInt32 gain = GOODIX_GESTURE_GAIN_DEFAULT;
+            if ((configured = OSDynamicCast(OSNumber, getProperty("GestureGainPercent")))) {
+                gain = configured->unsigned32BitValue();
+            }
+            if (gain < GOODIX_GESTURE_GAIN_MIN) gain = GOODIX_GESTURE_GAIN_MIN;
+            if (gain > GOODIX_GESTURE_GAIN_MAX) gain = GOODIX_GESTURE_GAIN_MAX;
+
+            physical_x = (UInt32)(((UInt64)physical_x * gain) / 100);
+            physical_y = (UInt32)(((UInt64)physical_y * gain) / 100);
+            if (physical_x > GOODIX_PHYSICAL_MAX_LIMIT) physical_x = GOODIX_PHYSICAL_MAX_LIMIT;
+            if (physical_y > GOODIX_PHYSICAL_MAX_LIMIT) physical_y = GOODIX_PHYSICAL_MAX_LIMIT;
+        } else {
+            IOLog("%s::PhysicalSurfaceWidth/Height not set; falling back to the coordinate range."
+                  " Scroll and pinch will be weak. Measure the panel and set both, in 0.01mm units.\n",
+                  getName());
+        }
+
+        event_driver->configureMultitouchInterface(ts->abs_x_max, ts->abs_y_max, physical_x, physical_y, GOODIX_MAX_CONTACTS, GOODIX_VENDOR_ID);
+    }
     event_driver->registerService();
 
     registerService();
